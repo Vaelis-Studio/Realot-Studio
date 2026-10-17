@@ -631,16 +631,16 @@ export async function exportProject(game, projectName, options) {
     compressionOptions: { level: 9 },
   });
   const safeName = (projectName || "untitled-project").trim().replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase() || "untitled-project";
-  // .rs is Realot's own project file extension — the archive itself
+  // .realot is Realot's own project file extension — the archive itself
   // is still a completely ordinary zip (JSZip.generateAsync above
   // never changes), just saved under a different extension so a
   // project save reads as a distinct file type rather than a generic
   // .zip. JSZip.loadAsync() in importProject() below reads by binary
   // content, not filename, so this rename has zero effect on load —
-  // see the accept=".rs,.zip" input in Toolbar.js for the load side
+  // see the accept=".realot,.zip" input in Toolbar.js for the load side
   // (.zip kept there too, so projects saved before this change still
   // open normally).
-  downloadBlob(blob, safeName + ".rs");
+  downloadBlob(blob, safeName + ".realot");
   return { optimizeStats };
 }
 

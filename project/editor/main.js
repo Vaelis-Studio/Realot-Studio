@@ -431,7 +431,7 @@ function boot() {
     }
   });
   startLiveStats(editorState);
-  // Double-clicking a .rs file in the OS (when Realot is installed as an app)
+  // Double-clicking a .realot file in the OS (when Realot is installed as an app)
   // launches the editor with that file. See "file_handlers" in
   // manifest.webmanifest. Unsupported browsers simply don't have launchQueue.
   if (window.launchQueue && typeof window.launchQueue.setConsumer === "function") {

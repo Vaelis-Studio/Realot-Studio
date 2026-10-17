@@ -306,6 +306,13 @@ export const editorState = {
      *  collider (clip override, or else the entity's base Collider2D)
      *  as a sized outline on top of the frame thumbnail */
     showColliderInPreview: false,
+    /** Animation preview zoom (1 = fit-to-box) and pan offset in px. */
+    previewZoom: 1,
+    previewPanX: 0,
+    previewPanY: 0,
+    /** fit-to-box scale of the last rendered preview (px per source px) —
+     *  lets the "1:1" button compute the zoom that shows real pixels. */
+    previewFitScale: 1,
   },
   /** Render function reference — set by main.js so any module can
    *  trigger an editor re-render (e.g. the script editor opening/closing). */

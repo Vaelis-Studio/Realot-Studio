@@ -496,6 +496,9 @@ let _lastSceneClick = { id: null, time: 0 };
         editorState.anim.previewFrameIndex = 0;
         editorState.anim.previewPlaying = false;
         editorState.anim.renamingClipId = null;
+        editorState.anim.previewZoom = 1;
+        editorState.anim.previewPanX = 0;
+        editorState.anim.previewPanY = 0;
         render();
         break;
       case "open-script-editor": {
@@ -708,6 +711,22 @@ let _lastSceneClick = { id: null, time: 0 };
       }
       case "anim-rename-clip": {
         editorState.anim.renamingClipId = t.dataset.clipId;
+        render();
+        break;
+      }
+      case "anim-preview-zoom": {
+        const a = editorState.anim;
+        const dir = t.dataset.dir;
+        const z0 = a.previewZoom || 1;
+        if (dir === "in") a.previewZoom = Math.min(40, z0 * 1.5);
+        else if (dir === "out") a.previewZoom = Math.max(0.25, z0 / 1.5);
+        else if (dir === "one") { a.previewZoom = Math.min(40, Math.max(0.25, 1 / (a.previewFitScale || 1))); a.previewPanX = 0; a.previewPanY = 0; }
+        else { a.previewZoom = 1; a.previewPanX = 0; a.previewPanY = 0; }
+        if (dir === "in" || dir === "out") {
+          const r = a.previewZoom / z0;
+          a.previewPanX = (a.previewPanX || 0) * r;
+          a.previewPanY = (a.previewPanY || 0) * r;
+        }
         render();
         break;
       }
@@ -1558,7 +1577,7 @@ let _lastSceneClick = { id: null, time: 0 };
       case "save-now": {
         // Manual, immediate save to this project's autosave slot (see
         // ProjectStorage.js's startAutosave/saveNow) — distinct from
-        // "save-project" above, which downloads a .rs. Guarded the
+        // "save-project" above, which downloads a .realot. Guarded the
         // same way that action is: no-op with nothing to do if there's
         // no game loaded or no autosave loop running for this project
         // (editorState.saveNow is only set for a launcher project —
@@ -2322,7 +2341,70 @@ case "select-scene-file": {
     _setSelection(newIds);
   }
 
+  // ---- Animation preview: wheel = zoom (about the cursor), drag = pan,
+  // double-click = fit. Plain document-level listeners; state lives in
+  // editorState.anim so it survives the panel's re-renders.
+  document.addEventListener(
+    "wheel",
+    (e) => {
+      const box = e.target.closest && e.target.closest(".animpanel-preview");
+      if (!box) return;
+      e.preventDefault();
+      const a = editorState.anim;
+      const z0 = a.previewZoom || 1;
+      const z1 = Math.min(40, Math.max(0.25, z0 * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+      if (z1 === z0) return;
+      const r = z1 / z0;
+      const rect = box.getBoundingClientRect();
+      const cx = e.clientX - (rect.left + rect.width / 2);
+      const cy = e.clientY - (rect.top + rect.height / 2);
+      a.previewPanX = cx - (cx - (a.previewPanX || 0)) * r;
+      a.previewPanY = cy - (cy - (a.previewPanY || 0)) * r;
+      a.previewZoom = z1;
+      render();
+    },
+    { passive: false }
+  );
+  let _animPanDrag = null;
+  document.addEventListener("pointerdown", (e) => {
+    const box = e.target.closest && e.target.closest(".animpanel-preview");
+    if (!box || e.target.closest(".animpanel-zoombar")) return;
+    if (e.button !== 0 && e.button !== 1) return;
+    const a = editorState.anim;
+    _animPanDrag = { x: e.clientX, y: e.clientY, px: a.previewPanX || 0, py: a.previewPanY || 0 };
+    box.style.cursor = "grabbing";
+  });
+  document.addEventListener("pointermove", (e) => {
+    if (!_animPanDrag) return;
+    const a = editorState.anim;
+    a.previewPanX = _animPanDrag.px + (e.clientX - _animPanDrag.x);
+    a.previewPanY = _animPanDrag.py + (e.clientY - _animPanDrag.y);
+    const st = document.querySelector(".animpanel-preview [data-anim-stage]");
+    if (st) st.style.transform = "translate(" + a.previewPanX + "px," + a.previewPanY + "px)";
+  });
+  const _endAnimPan = () => {
+    if (!_animPanDrag) return;
+    _animPanDrag = null;
+    const box = document.querySelector(".animpanel-preview");
+    if (box) box.style.cursor = "";
+  };
+  document.addEventListener("pointerup", _endAnimPan);
+  document.addEventListener("pointercancel", _endAnimPan);
+  document.addEventListener("dblclick", (e) => {
+    if (!(e.target.closest && e.target.closest(".animpanel-preview")) || e.target.closest(".animpanel-zoombar")) return;
+    const a = editorState.anim;
+    a.previewZoom = 1; a.previewPanX = 0; a.previewPanY = 0;
+    render();
+  });
+
   document.addEventListener("keydown", (e) => {
+    // Ctrl+S / Cmd+S = force save (same as the toolbar Save button).
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === "s" || e.key === "S")) {
+      e.preventDefault();
+      const saveBtn = document.querySelector("[data-toolbar-save]");
+      if (saveBtn) saveBtn.click();
+      return;
+    }
     if (e.target.dataset && e.target.dataset.action === "rename-scene-input") {
       if (e.key === "Enter") {
         e.target.blur(); // triggers the focusout handler below, which commits + re-renders
@@ -3621,8 +3703,8 @@ function applyFieldChange(field, inputEl) {
 }
 
 /**
- * Loads a project file (.rs, or an older .zip) into the editor, replacing the
- * current project. Used by File -> Load Project and by double-clicking a .rs
+ * Loads a project file (.realot, or an older .zip) into the editor, replacing the
+ * current project. Used by File -> Load Project and by double-clicking a .realot
  * file in the OS (see the launchQueue consumer in main.js).
  *
  * @param {File} file

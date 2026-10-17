@@ -155,6 +155,17 @@ export function renderToolbar() {
     "</button>" +
     "</div></div>" +
     '<div class="toolbar-right">' +
+    // Always-visible manual save. Forces an immediate save to this project's
+    // autosave slot (same path as the 1-minute autosave). In a standalone
+    // editor with no autosave slot it falls back to Save Project (download).
+    // Amber dot = changes not saved yet.
+    '<button class="pill-btn" data-action="' + (editorState.saveNow ? "save-now" : "save-project") + '"' +
+    ' data-toolbar-save="1" title="' +
+      (dirtyState.isDirty ? "Unsaved changes \u2014 click to save now (Ctrl+S)" : "All changes saved \u2014 click to save again (Ctrl+S)") +
+    '" style="display:inline-flex;align-items:center;gap:5px;margin-right:6px;">' +
+    '<span style="width:7px;height:7px;border-radius:50%;background:' + (dirtyState.isDirty ? "#f5a623" : "#4caf7d") + ';display:inline-block;"></span>' +
+    (dirtyState.isDirty ? "Save" : "Saved") +
+    "</button>" +
     '<button class="pill-btn" data-action="open-export-window" title="Export a standalone, playable build of your game" style="display:inline-flex;align-items:center;gap:4px;margin-right:6px;">' +
     icon("monitor", 11) +
     " Export" +
@@ -250,7 +261,7 @@ function renderFileMenu() {
     // "Save Now" — a real, immediate, awaited save to this project's
     // autosave slot (the same localStorage/IndexedDB snapshot the
     // 1-minute autosave loop writes to — see ProjectStorage.js), as
-    // opposed to "Save Project" below, which downloads a .rs. Only
+    // opposed to "Save Project" below, which downloads a .realot. Only
     // shown for a project actually opened from the launcher — an
     // editor opened standalone has no autosave loop/project id to save
     // into at all (see EditorState.js's saveNow doc comment). The
@@ -333,7 +344,7 @@ function renderFileMenu() {
     // Import Audio (a real <input type="file"> hidden and
     // programmatically clicked, listened to via the delegated "change"
     // handler in EditorEvents.js).
-    '<input type="file" accept=".rs,.vs,.zip" data-action="load-project-input" style="display:none;" />' +
+    '<input type="file" accept=".realot,.rs,.vs,.zip" data-action="load-project-input" style="display:none;" />' +
     "</div>"
   );
 }

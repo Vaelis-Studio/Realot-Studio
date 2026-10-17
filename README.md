@@ -39,7 +39,7 @@ creating the APK; the finished APK runs independently.
 
 - `docs/index.html` — quick start, scripting API, exporting (linked from the hub's Learn tab).
 - `SECURITY.md` — **read before sharing projects:** game scripts are not sandboxed; set up a separate play origin.
-- `file-association/` — how to get the Realot icon on `.rs` project files.
+- `file-association/` — how to get the Realot icon on `.realot` project files.
 - `tests/e2e-play-origin.py` — browser test for the Play window and its origin isolation.
 - `THIRD_PARTY_LICENSES.md` — licenses for bundled libraries. Exported games include their own copy.
 

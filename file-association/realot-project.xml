@@ -3,7 +3,7 @@
   <mime-type type="application/x-realot-project">
     <comment>Realot Project</comment>
     <sub-class-of type="application/zip"/>
-    <glob pattern="*.rs"/>
+    <glob pattern="*.realot"/>
     <icon name="application-x-realot-project"/>
     <generic-icon name="application-x-realot-project"/>
   </mime-type>

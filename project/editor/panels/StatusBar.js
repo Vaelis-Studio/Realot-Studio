@@ -127,6 +127,21 @@ export function startLiveStats(editorState) {
         dirtyEl.style.color = "";
       }
     }
+
+    // Toolbar Save button: same cheap tick, no full render() per edit.
+    const saveBtn = document.querySelector("[data-toolbar-save]");
+    if (saveBtn) {
+      const dirty = dirtyState.isDirty;
+      if (saveBtn.dataset.dirty !== String(dirty)) {
+        saveBtn.dataset.dirty = String(dirty);
+        const dot = saveBtn.firstElementChild;
+        if (dot) dot.style.background = dirty ? "#f5a623" : "#4caf7d";
+        if (saveBtn.lastChild) saveBtn.lastChild.textContent = dirty ? "Save" : "Saved";
+        saveBtn.title = dirty
+          ? "Unsaved changes \u2014 click to save now (Ctrl+S)"
+          : "All changes saved \u2014 click to save again (Ctrl+S)";
+      }
+    }
   }, 500);
 
   // Return a cleanup handle (unused in practice — the editor lives for

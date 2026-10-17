@@ -1,8 +1,8 @@
 """
-Imports a deliberately tampered .rs (stored script = B, the copy embedded in the
+Imports a deliberately tampered .realot (stored script = B, the copy embedded in the
 scene = stale) while the script editor is open on the old code, then checks the
 script editor, the scene components and PLAY all use B. Also writes
-/tmp/tampered.rs, which e2e-open-rs-file.py reuses.
+/tmp/tampered.realot, which e2e-open-realot-file.py reuses.
 Usage: python3 tests/e2e-script-sync.py http://127.0.0.1:8001 LABEL
 (needs the Monaco bundle in project/vendor/monaco-editor and playwright)
 """
@@ -41,7 +41,7 @@ with sync_playwright() as p:
         return False
     check("opened script editor on original project", open_editor())
     ed.wait_for_selector(".monaco-editor", timeout=60000); ed.wait_for_timeout(1500)
-    # save project -> .rs download
+    # save project -> .realot download
     ed.evaluate("document.querySelector('[data-action=\"toggle-menu\"][data-menu=\"file\"]')?.click()"); ed.wait_for_timeout(400)
     if not ed.query_selector('[data-action="save-project"]'):
         print("menus:", ed.evaluate("[...document.querySelectorAll('[data-action=toggle-menu]')].map(e=>e.dataset.menu)"))
@@ -66,10 +66,10 @@ with sync_playwright() as p:
         elif item.filename.startswith("scenes/") and item.filename.endswith(".json") and item.filename!="scenes/index.json":
             d=json.loads(data); stale(d); data=json.dumps(d).encode(); patched+=1
         zout.writestr(item, data)
-    zout.close(); open("/tmp/tampered.rs","wb").write(out.getvalue())
-    print("tampered .rs written; scene files patched:", patched)
+    zout.close(); open("/tmp/tampered.realot","wb").write(out.getvalue())
+    print("tampered .realot written; scene files patched:", patched)
     # import it while the script editor is still open on the OLD code
-    ed.set_input_files('[data-action="load-project-input"]', "/tmp/tampered.rs")
+    ed.set_input_files('[data-action="load-project-input"]', "/tmp/tampered.realot")
     for _ in range(40):   # the import is async (assets, scenes): wait until it has visibly finished
         ed.wait_for_timeout(500)
         done = ed.evaluate("async (n)=>{ const ss=await import('/project/editor/scripting/ScriptStorage.js'); const l=document.body.innerText||''; return /Loaded project|Project loaded|Loaded/i.test(l) || ss.getScriptSource(n).includes('STORAGE-B'); }", X)

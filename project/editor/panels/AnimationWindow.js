@@ -159,6 +159,7 @@ function _renderClipEditor(entity, anim, clip) {
     (previewThumb
       ? _renderPreviewStage(entity, clip, previewFrame, previewThumb)
       : '<div class="animpanel-preview-empty">' + icon("film", 32) + "<span>No frames</span></div>") +
+    _renderZoomBar() +
     "</div>" +
     '<div class="animpanel-transport">' +
     '<button class="animpanel-ibtn" data-action="anim-preview-step" data-dir="-1" title="Previous Frame">' +
@@ -252,6 +253,19 @@ function _renderClipEditor(entity, anim, clip) {
  */
 const PREVIEW_STAGE_SIZE = 130; // px — fits inside the 150px-tall / 230px-wide preview box with margin
 
+function _renderZoomBar() {
+  const z = editorState.anim.previewZoom || 1;
+  return (
+    '<div class="animpanel-zoombar" title="Mouse wheel = zoom, drag = pan, double-click = fit">' +
+    '<button data-action="anim-preview-zoom" data-dir="out" title="Zoom out">\u2212</button>' +
+    '<span class="zlabel">' + Math.round(z * 100) + "%</span>" +
+    '<button data-action="anim-preview-zoom" data-dir="in" title="Zoom in">+</button>' +
+    '<button data-action="anim-preview-zoom" data-dir="fit" title="Fit to box">Fit</button>' +
+    '<button data-action="anim-preview-zoom" data-dir="one" title="Actual pixels (1:1)">1:1</button>' +
+    "</div>"
+  );
+}
+
 function _renderPreviewStage(entity, clip, frame, thumb) {
   const fw = frame.width || 1;
   const fh = frame.height || 1;
@@ -283,7 +297,15 @@ function _renderPreviewStage(entity, clip, frame, thumb) {
   // image and the collider outline, so an oversized sprite OR an
   // oversized collider each independently trigger a further zoom-out
   // rather than clipping.
-  const scale = Math.min(PREVIEW_STAGE_SIZE / boundsW, PREVIEW_STAGE_SIZE / boundsH);
+  const fitScale = Math.min(PREVIEW_STAGE_SIZE / boundsW, PREVIEW_STAGE_SIZE / boundsH);
+  editorState.anim.previewFitScale = fitScale;
+  // User zoom multiplies the fit scale, so a tiny sprite/collider can be
+  // enlarged (wheel / + / 1:1) and a huge one shrunk, without ever losing
+  // the shared image+collider alignment.
+  const zoom = editorState.anim.previewZoom || 1;
+  const scale = fitScale * zoom;
+  const panX = editorState.anim.previewPanX || 0;
+  const panY = editorState.anim.previewPanY || 0;
 
   const toPx = (x, y, w, h) => ({
     left: (x - minX) * scale,
@@ -302,8 +324,8 @@ function _renderPreviewStage(entity, clip, frame, thumb) {
   }
 
   return (
-    '<div class="animpanel-preview-stage" style="position:relative;width:' +
-    stageW + "px;height:" + stageH + 'px;">' +
+    '<div class="animpanel-preview-stage" data-anim-stage="1" style="position:relative;width:' +
+    stageW + "px;height:" + stageH + "px;transform:translate(" + panX + "px," + panY + 'px);">' +
     '<img src="' + thumb + '" alt="" style="position:absolute;left:' +
     imgRect.left + "px;top:" + imgRect.top + "px;width:" + imgRect.width +
     "px;height:" + imgRect.height + 'px;image-rendering:pixelated;" />' +
@@ -356,6 +378,24 @@ function _renderColliderOverlay(source, bounds, originX, originY, scale) {
   const top = (bounds.minY - originY) * scale;
   const w = Math.max(1, (bounds.maxX - bounds.minX) * scale);
   const h = Math.max(1, (bounds.maxY - bounds.minY) * scale);
+
+  if (source.shape === ColliderShape.TRIANGLE) {
+    // Draw the real triangle (not its bounding box) with draggable-looking
+    // corner dots so it can be checked/adjusted precisely when zoomed in.
+    const ox = source.offsetX || 0;
+    const oy = source.offsetY || 0;
+    const pts = (source.trianglePoints || []).map((q) => ({
+      x: (q.x + ox - originX) * scale,
+      y: (q.y + oy - originY) * scale,
+    }));
+    const poly = pts.map((q) => q.x + "," + q.y).join(" ");
+    return (
+      '<svg class="animpanel-collider-overlay" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible;" width="1" height="1">' +
+      '<polygon points="' + poly + '" fill="' + color + '22" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round"/>' +
+      pts.map((q) => '<circle cx="' + q.x + '" cy="' + q.y + '" r="3" fill="#fff" stroke="' + color + '" stroke-width="1.5"/>').join("") +
+      "</svg>"
+    );
+  }
 
   const isRound = source.shape === ColliderShape.CIRCLE || source.shape === ColliderShape.CAPSULE;
 

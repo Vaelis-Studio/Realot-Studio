@@ -1,19 +1,19 @@
-# Showing the Realot icon on `.rs` project files
+# Showing the Realot icon on `.realot` project files
 
-A `.rs` file is a ZIP archive with Realot's own extension. Which icon a file
+A `.realot` file is a ZIP archive with Realot's own extension. Which icon a file
 shows is decided by your operating system from the extension, so a web app
 can't change it directly. There are two ways to get the Realot icon:
 
 ## 1. Install Realot as an app (recommended, nothing to configure)
 
-`manifest.webmanifest` declares a **file handler** for `.rs` with the
-document-style Realot icon (`icons/rs-file-*.png`). When someone installs
+`manifest.webmanifest` declares a **file handler** for `.realot` with the
+document-style Realot icon (`icons/realot-file-*.png`). When someone installs
 Realot from Chrome or Edge ("Install app"), the browser registers the type
 with the OS:
 
-- `.rs` files get the Realot file icon (Windows, ChromeOS and Linux Chromium
+- `.realot` files get the Realot file icon (Windows, ChromeOS and Linux Chromium
   browsers; support elsewhere depends on the browser version).
-- Double-clicking a `.rs` file, or "Open with → Realot", opens the editor
+- Double-clicking a `.realot` file, or "Open with → Realot", opens the editor
   with that project loaded. The file is opened as an unsaved session; use
   File → Save Project to write changes back out.
 
