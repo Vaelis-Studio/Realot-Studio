@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Realot Documentation</title>
+<meta name="theme-color" content="#07070b">
+<style>
+  :root { --bg:#07070b; --panel:#0f0f16; --line:#22222f; --text:#e7e7ee; --muted:#9a9aae; --accent:#8b7bff; --code:#14141d; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 20px 96px; }
+  header { padding: 28px 0 8px; }
+  h1 { font-size: 2rem; margin: 0 0 6px; }
+  h2 { font-size: 1.45rem; margin: 48px 0 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.1rem; margin: 28px 0 8px; }
+  p, li { color: #cfcfdb; }
+  a { color: var(--accent); }
+  nav { display:flex; flex-wrap:wrap; gap:8px; margin: 16px 0 8px; }
+  nav a { padding:6px 12px; border:1px solid var(--line); border-radius:999px; text-decoration:none; font-size:.9rem; color:var(--text); background:var(--panel); }
+  code { background:var(--code); padding:1px 6px; border-radius:5px; font:0.9em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  pre { background:var(--code); border:1px solid var(--line); border-radius:10px; padding:14px 16px; overflow:auto; line-height:1.5; }
+  pre code { background:none; padding:0; }
+  table { width:100%; border-collapse:collapse; margin: 12px 0; font-size:.95rem; }
+  th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  .note { border-left:3px solid var(--accent); background:var(--panel); padding:10px 14px; border-radius:0 8px 8px 0; margin:16px 0; }
+  .warn { border-left-color:#e8a23d; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Realot Documentation</h1>
+  <p class="muted">Build 2D games in your browser. Everything here works offline once the app is installed.</p>
+  <nav>
+    <a href="#quickstart">Quick start</a>
+    <a href="#concepts">Core concepts</a>
+    <a href="#scripting">Scripting</a>
+    <a href="#api">Script API</a>
+    <a href="#saving">Saving data</a>
+    <a href="#export">Exporting</a>
+    <a href="#trouble">Troubleshooting</a>
+    <a href="#safety">Safety</a>
+  </nav>
+</header>
+
+<h2 id="quickstart">Quick start</h2>
+<ol>
+  <li>Open the hub and create a project. Start from a template (platformer, physics sandbox, flappy-bird style, top-down) or from an empty project.</li>
+  <li>Open the editor. Select objects in the <b>Hierarchy</b>, change their settings in the <b>Inspector</b>, and arrange them in the <b>Viewport</b>.</li>
+  <li>Add behavior with <b>Add Component</b> (physics, colliders, controllers, lights, audio, and more) and with <b>Script</b> components.</li>
+  <li>Press <b>Play</b> to run the game in a separate window. Script errors and your <code>console.log</code> output show up in the editor's console.</li>
+  <li>When it works, use <b>Export</b> to get a game you can host anywhere (see <a href="#export">Exporting</a>).</li>
+</ol>
+<p>Your project autosaves in this browser. To back it up or move it to another device, use <b>File → Save Project</b>, which downloads a single <code>.rs</code> file (a ZIP archive with Realot's own extension). <b>File → Load Project</b> opens one again. If Realot is installed as an app, <code>.rs</code> files show the Realot icon and double-clicking one opens it in the editor; see <code>file-association/README.md</code>.</p>
+<p>The code you see in the script editor is the code that runs. Scripts are stored once per project, and Play, Export and Save always use that stored code, even if an imported project's scenes carried an older copy.</p>
+
+<h2 id="concepts">Core concepts</h2>
+<ul>
+  <li><b>Scene</b> – a level or screen. A project can have several; switch with <code>scene.load("Name")</code>.</li>
+  <li><b>Entity</b> – any object in a scene. It has a name, optional tag, and a set of components.</li>
+  <li><b>Component</b> – a piece of behavior or data on an entity: <code>Transform</code>, <code>SpriteRenderer</code>, <code>ShapeRenderer</code>, <code>TextRenderer</code>, <code>SpriteAnimation</code>, <code>Rigidbody2D</code>, <code>Collider2D</code>, <code>CharacterController</code>, <code>Camera</code>, <code>Light</code>, <code>ShadowCaster</code>, <code>Tilemap</code>, <code>AudioSource</code>, <code>Joint2D</code>, <code>NavAgent2D</code>, <code>Joystick</code>, <code>Script</code>, and others.</li>
+  <li><b>Tags</b> – labels you put on entities so scripts can find or message groups of them (for example <code>"Enemy"</code>).</li>
+  <li><b>Physics</b> – powered by Rapier. Give an entity a <code>Rigidbody2D</code> and a <code>Collider2D</code> to make it physical. Physics layers decide what collides with what.</li>
+</ul>
+
+<h2 id="scripting">Scripting</h2>
+<p>Scripts are plain JavaScript attached to an entity with a <code>Script</code> component. You write functions with special names (called <i>lifecycle functions</i>) and the engine calls them at the right moments. Inside them, <code>this</code> is the entity the script is on.</p>
+
+<pre><code>function onStart() {
+  this.speed = 200;            // your own variable on this entity's script
+}
+
+function onUpdate(dt) {
+  if (input.keyDown("ArrowRight")) this.x += this.speed * dt;
+  if (input.keyDown("ArrowLeft"))  this.x -= this.speed * dt;
+}</code></pre>
+
+<h3>Lifecycle functions</h3>
+<table>
+  <tr><th>Function</th><th>When it runs</th></tr>
+  <tr><td><code>onStart()</code></td><td>Once, before the first <code>onUpdate</code>.</td></tr>
+  <tr><td><code>onUpdate(dt)</code></td><td>Every rendered frame. <code>dt</code> is seconds since the last frame.</td></tr>
+  <tr><td><code>onFixedUpdate(dt)</code></td><td>At a fixed 60 Hz step. Use for physics-style logic.</td></tr>
+  <tr><td><code>onClick()</code></td><td>The frame the mouse or a finger is pressed on this entity (needs a <code>Collider2D</code>).</td></tr>
+  <tr><td><code>onCollisionEnter(other)</code></td><td>This entity's collider starts touching another. (<code>onCollision</code> is an alias.)</td></tr>
+  <tr><td><code>onCollisionStay(other)</code> / <code>onCollisionExit(other)</code></td><td>Every physics step while touching / when contact ends.</td></tr>
+  <tr><td><code>onTriggerEnter(other)</code> / <code>onTriggerExit(other)</code></td><td>Entering / leaving a trigger collider.</td></tr>
+  <tr><td><code>onMessage(message, sender, data)</code></td><td>Another script called <code>sendMessage</code> or <code>broadcastMessage</code> to this entity.</td></tr>
+  <tr><td><code>onClone()</code></td><td>Only on entities created with <code>spawn()</code>, right before their <code>onStart</code>.</td></tr>
+  <tr><td><code>onDestroy()</code></td><td>When the entity is destroyed or the scene ends.</td></tr>
+  <tr><td><code>onStateEnter()</code> / <code>onStateUpdate(dt)</code> / <code>onStateExit()</code></td><td>Simple state machine: switch with <code>this.state.change("name")</code> and branch on <code>this.state.current</code>.</td></tr>
+</table>
+
+<div class="note">
+  <b>Arrow functions and <code>this</code>.</b> Top-level <code>function name() {}</code> declarations get <code>this</code> bound to the entity automatically. Arrow functions can't be rebound, so a top-level arrow that uses <code>this</code> will not see the entity. The editor warns you when it spots one; use a normal <code>function</code> instead.
+</div>
+
+<h2 id="api">Script API</h2>
+<p>These are available in every script without importing anything.</p>
+
+<h3>On <code>this</code> (the entity)</h3>
+<table>
+  <tr><th>Member</th><th>Notes</th></tr>
+  <tr><td><code>x</code>, <code>y</code>, <code>position</code>, <code>rotation</code>, <code>scaleX</code>, <code>scaleY</code></td><td>Read and write. Changes apply immediately.</td></tr>
+  <tr><td><code>translate(dx, dy)</code>, <code>distanceTo(other)</code></td><td>Move relatively / measure distance.</td></tr>
+  <tr><td><code>visible</code>, <code>enabled</code>, <code>name</code>, <code>tag</code>, <code>id</code></td><td>Basic entity info and toggles.</td></tr>
+  <tr><td><code>destroy()</code>, <code>hasComponent(type)</code></td><td></td></tr>
+  <tr><td><code>isClicked</code>, <code>isTapped</code>, <code>isPointerOver</code></td><td>Pointer state for this entity.</td></tr>
+  <tr><td><code>this.rigidbody</code>, <code>this.collider</code>, <code>this.sprite</code>, <code>this.shape</code>, <code>this.animator</code>, <code>this.camera</code>, <code>this.audio</code>, <code>this.controller</code>, <code>this.light</code>, <code>this.joint</code></td><td>One object per component type, present when the entity has that component. Each exposes the settings and actions for that component (for example <code>this.controller.isGrounded</code>).</td></tr>
+</table>
+
+<h3>Globals</h3>
+<table>
+  <tr><th>Name</th><th>What it does</th></tr>
+  <tr><td><code>findFirst(name)</code>, <code>findAll(name)</code></td><td>Look up entities by name.</td></tr>
+  <tr><td><code>findFirstWithTag(tag)</code>, <code>findAllWithTag(tag)</code></td><td>Look up entities by tag.</td></tr>
+  <tr><td><code>findById(id)</code>, <code>findInRadius(x, y, r)</code></td><td>Exact lookup / spatial query.</td></tr>
+  <tr><td><code>spawn(nameOrTag, { x, y })</code></td><td>Create a copy of an entity while the game runs.</td></tr>
+  <tr><td><code>wait(seconds, fn)</code>, <code>repeat(seconds, fn)</code></td><td>Run a function later / repeatedly. <code>cancelWait(id)</code> and <code>cancelRepeat(id)</code> stop them.</td></tr>
+  <tr><td><code>tween(target, properties, duration, easing, onComplete)</code></td><td>Animate numeric properties smoothly; choose from 33 easing modes, including quadratic/cubic/quartic/quintic, sine, exponential, circular, back, elastic, and bounce variants. <code>cancelTween(id)</code> stops an active tween.</td></tr>
+  <tr><td><code>sendMessage(tagOrEntity, msg, data)</code>, <code>broadcastMessage(msg, data)</code></td><td>Talk to other scripts; they receive it in <code>onMessage</code>.</td></tr>
+  <tr><td><code>scene.load(name)</code>, <code>scene.restart()</code></td><td>Change or restart the scene.</td></tr>
+  <tr><td><code>input.keyDown(key)</code>, <code>input.keyPressed(key)</code></td><td>Held / pressed this frame. Keys use browser key codes such as <code>"Space"</code>, <code>"ArrowLeft"</code>, <code>"KeyP"</code>; <code>"Any"</code> matches any key.</td></tr>
+  <tr><td><code>mouse.down / pressed / released(button)</code>, <code>mouse.isOver(target)</code>, <code>mouse.clickedOn(target)</code></td><td>Pointer input. <code>touch</code> holds current touches.</td></tr>
+  <tr><td><code>time.deltaTime</code>, <code>time.elapsed</code></td><td>Game seconds since the last frame / since the game started. Both follow <code>time.scale</code>.</td></tr>
+  <tr><td><code>time.scale</code></td><td>Game speed, read and write (0 to 100). <code>1</code> normal, <code>0.5</code> slow motion, <code>2</code> double speed, <code>0</code> frozen. See <a href="#timescale">Slow motion and speed-up</a>.</td></tr>
+  <tr><td><code>time.unscaledDeltaTime</code></td><td>Real seconds since the last frame, ignoring <code>time.scale</code>. Use it for menus and UI that must keep animating.</td></tr>
+  <tr><td><code>random.int(min, max)</code>, <code>random.float(min, max)</code></td><td>Random numbers.</td></tr>
+  <tr><td><code>mathx.lerp / clamp / moveToward / remap / smoothstep / approximately</code></td><td>Small math helpers.</td></tr>
+  <tr><td><code>physics</code>, <code>nav</code></td><td>Raycasts and queries; pathfinding helpers.</td></tr>
+  <tr><td><code>global</code></td><td>A shared object every script can read and write for the current play session.</td></tr>
+  <tr><td><code>save</code></td><td>Persistent storage that survives restarts. See below.</td></tr>
+  <tr><td><code>debug.log(label, value)</code>, <code>debug.showFps(true)</code></td><td>On-screen debugging helpers.</td></tr>
+</table>
+<p class="muted">The editor's script editor has autocomplete for all of these, including the per-component members. Use it as the full reference.</p>
+
+<h3>Example: tween movement, rotation, and sprite opacity</h3>
+<pre><code>function onStart() {
+  // Animate several entity properties over 0.8 game seconds.
+  tween(this, { x: 420, y: 180, rotation: 90, scaleX: 1.2, scaleY: 1.2 }, 0.8, "easeOutCubic", function () {
+    // `this` is the entity that started the tween.
+    tween(this.sprite, { opacity: 0.25 }, 0.35, "easeInOutSine");
+  });
+
+  // Save an id if you might need to stop an animation early.
+  // var id = tween(this, { x: 700 }, 2, "easeOutBounce");
+  // cancelTween(id);
+}</code></pre>
+<p>Start a tween from a lifecycle callback such as <code>onStart()</code> or <code>onClick()</code>, rather than creating it every frame in <code>onUpdate()</code>. Properties must be numeric and already exist on the target; an entity supports <code>x</code>, <code>y</code>, <code>rotation</code>, <code>scaleX</code>, and <code>scaleY</code>, while component targets can animate their own numeric properties such as <code>this.sprite.opacity</code>. The editor autocompletes all supported easing names inside the easing string.</p>
+
+<h3>Example: a pickup that messages a score keeper</h3>
+<pre><code>// On the coin
+function onTriggerEnter(other) {
+  if (other.tag === "Player") {
+    sendMessage("GameController", "point");
+    this.destroy();
+  }
+}
+
+// On an entity tagged "GameController"
+function onStart() { global.score = 0; }
+function onMessage(message, sender, data) {
+  if (message === "point") global.score += 1;
+}</code></pre>
+
+<h3 id="timescale">Slow motion and speed-up</h3>
+<p><code>time.scale</code> changes how fast the whole game runs, like Unity's <code>Time.timeScale</code>.</p>
+<pre><code>function onClick() {
+  time.scale = 0.3;              // slow motion
+  wait(1.5, function () {        // 1.5 GAME seconds = 5 real seconds at 0.3
+    time.scale = 1;
+  });
+}</code></pre>
+<ul>
+  <li><b>Affected:</b> physics, animations, <code>tween()</code>, <code>wait()</code> / <code>repeat()</code>, <code>onFixedUpdate</code>, <code>time.deltaTime</code> and <code>time.elapsed</code>.</li>
+  <li><b>Not affected:</b> input, drawing, and <code>time.unscaledDeltaTime</code>. Audio keeps playing at normal pitch.</li>
+  <li><b>At <code>0</code></b> the game is frozen but scripts keep running: <code>onUpdate</code> is called with <code>deltaTime = 0</code>, so you can still read input and show a pause menu. Move menu animations with <code>time.unscaledDeltaTime</code>.</li>
+  <li><b>Limits:</b> values must be numbers from 0 to 100 (anything else is ignored with a console warning). Each frame can simulate at most half a second of game time, so on a 60 FPS screen speeds above about 30x won't go faster.</li>
+  <li><b>It stays set</b> when you load or restart a scene. Set <code>time.scale = 1</code> yourself if the next scene should run at normal speed.</li>
+</ul>
+
+<h2 id="saving">Saving data</h2>
+<p>Use <code>save</code>, not the browser's storage. Scripts can't use <code>localStorage</code>, <code>window</code>, <code>document</code> or <code>fetch</code> (see <a href="#safety">Safety</a>).</p>
+<pre><code>var best = save.get("best") || 0;
+if (global.score &gt; best) save.set("best", global.score);</code></pre>
+<p>Also available: <code>save.has</code>, <code>save.delete</code>, <code>save.keys</code>, <code>save.clear</code>, and save slots through <code>save.load</code>, <code>save.listSlots</code> and <code>save.deleteSlot</code>.</p>
+
+<h2 id="export">Exporting</h2>
+<p>Open <b>Export</b> in the editor. You get a standalone <code>.zip</code> with an <code>index.html</code> at its root and no dependency on the editor.</p>
+<ul>
+  <li><b>HTML5</b> – a plain web game. Upload the unzipped folder to any static host (itch.io, GitHub Pages, Netlify, Cloudflare Pages).</li>
+  <li><b>PWA</b> – the same game plus a manifest and service worker so players can install it and play offline.</li>
+  <li><b>Android APK</b> – needs a build server. In the Export window add the server URL and API key supplied by whoever runs it. The editor sends your exported game to that server and downloads the finished APK. The APK itself runs without the server.</li>
+</ul>
+<div class="note warn">
+  <b>Don't open <code>index.html</code> straight from your disk.</b> Browsers block ES modules on <code>file://</code>. Upload it, or run a local server in the folder (for example <code>npx serve .</code> or <code>python3 -m http.server</code>) and open the address it prints.
+</div>
+<p>Exported games include <code>THIRD_PARTY_LICENSES.txt</code>. Keep it in the folder when you publish.</p>
+
+<h2 id="trouble">Troubleshooting</h2>
+<table>
+  <tr><th>Problem</th><th>What to try</th></tr>
+  <tr><td>A script does nothing</td><td>Check the editor's console for a red error with the script name and line number. Make sure the script component is enabled.</td></tr>
+  <tr><td><code>this</code> is <code>undefined</code> inside a function</td><td>You used an arrow function at the top level. Use <code>function name() { ... }</code>.</td></tr>
+  <tr><td>"<code>window</code> is not defined" / "cannot read properties of undefined" on <code>localStorage</code> or <code>fetch</code></td><td>Those are blocked in scripts. Use <code>save</code> and <code>global</code>.</td></tr>
+  <tr><td>Collisions never fire</td><td>Both entities need a <code>Collider2D</code>, and at least one needs a <code>Rigidbody2D</code>. Check the physics layers.</td></tr>
+  <tr><td>Exported game shows a blank page</td><td>You opened it from <code>file://</code>. Serve it over http(s).</td></tr>
+  <tr><td>"Autosave failed" / storage warnings</td><td>The browser's storage quota is full. Export a project <code>.zip</code> as a backup and remove unused assets.</td></tr>
+  <tr><td>Editor looks out of date after an update</td><td>Reload once while online so the offline cache refreshes.</td></tr>
+</table>
+
+<h2 id="safety">Safety</h2>
+<div class="note warn">
+  <b>Scripts are code.</b> A project's scripts run with the same permissions as the editor page, including access to anything saved in this browser (for example Android build server keys). Only open projects from people you trust. The editor asks before loading a project that contains scripts.
+</div>
+<p>To limit accidents, scripts can't see <code>window</code>, <code>document</code>, <code>localStorage</code>, <code>sessionStorage</code>, <code>indexedDB</code>, <code>fetch</code>, <code>XMLHttpRequest</code>, <code>WebSocket</code> and similar globals. This is a safety net, not a security wall. The real protection is running games on a separate play origin from the editor, which whoever hosts Realot can set up (see <code>SECURITY.md</code>).</p>
+
+<h2>Licenses</h2>
+<p>Realot bundles open-source libraries. See <code>THIRD_PARTY_LICENSES.md</code> in the distribution for the list and license texts.</p>
+</div>
+</body>
+</html>

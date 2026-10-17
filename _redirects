@@ -1,0 +1,9 @@
+# Cloudflare Pages redirects. Targets are the clean URLs Cloudflare serves
+# directly (it strips .html and /index.html), so these can never loop.
+/editor           /project/editor/        302
+/editor/          /project/editor/        302
+/project/editor   /project/editor/        302
+/play             /project/player/play    302
+/player           /project/player/play    302
+/project/player   /project/player/play    302
+/project/player/  /project/player/play    302

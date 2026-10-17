@@ -1,0 +1,580 @@
+/**
+ * editor/styles/editor.css
+ *
+ * Visual theme for the editor UI shell (Unity-style dark theme).
+ * Editor-only — the standalone player has its own minimal CSS in
+ * player/play.html and never loads this file.
+ */
+
+  :root{
+    --bgApp:#1c1c1c;
+    --bgPanel:#383838;
+    --bgHeader:#282828;
+    --bgInput:#2a2a2a;
+    --bgInputFocus:#1e1e1e;
+    --border:#1a1a1a;
+    --borderLight:#444444;
+    --accent:#2C5D87;
+    --accentHover:#3A72B0;
+    --textMain:#eeeeee;
+    --textMuted:#aaaaaa;
+    --textDark:#888888;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;padding:0;}
+  body{
+    font-family:"Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
+    background:var(--bgApp);
+    color:var(--textMain);
+    font-size:12px;
+    overflow:hidden;
+    -webkit-user-select:none;
+    user-select:none;
+    /* Chromebook / touchscreen fix: without this, Chrome can spend up to
+       ~300ms after a touch deciding whether it's a tap or the start of a
+       scroll/pinch gesture, and on some elements — especially ones inside
+       a scrollable panel (Scene list, Hierarchy, etc.) — it resolves that
+       ambiguity as a scroll/pan and never fires "click" at all, making
+       buttons and list rows feel completely unresponsive to touch even
+       though the exact same click works fine with a real mouse.
+       "manipulation" tells the browser "this is not a page to
+       pinch-zoom or pan as a whole" so it dispatches click immediately
+       on tap instead of waiting. Applied editor-wide via inheritance
+       (touch-action doesn't cascade through the CSS box model the way
+       color/font do, but every element still individually needs SOME
+       value — "auto" was the implicit default causing the delay, so
+       setting it here on body/*, and PIXI's own canvas explicitly below,
+       covers both the UI chrome and the viewport in one place). */
+    touch-action:manipulation;
+  }
+  *{touch-action:manipulation;}
+  button{font-family:inherit;cursor:pointer;background:none;border:none;color:inherit;padding:0;}
+  input{font-family:inherit;color:inherit;}
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button{ -webkit-appearance:none; margin:0; }
+  select{font-family:inherit;}
+
+  /* Scene viewport's PIXI <canvas> specifically — it needs its OWN
+     drag gestures (pan tool, gizmo drags, freeform light vertex drags)
+     to work via pointerdown/pointermove without the browser also trying
+     to scroll or pinch-zoom the page underneath those same touches, and
+     needs the double-tap that inserts a Freeform Light vertex
+     (SceneViewport.js's _lastFreeformClick) to register as two fast,
+     distinct taps rather than being swallowed as a double-tap-to-zoom
+     gesture, which Chrome performs natively on canvas-like elements
+     unless touch-action says otherwise. */
+  canvas{touch-action:none;}
+
+/* Text/number inputs throughout the Inspector (position/rotation/scale
+   fields, Script Name, etc.) only had `color:inherit` above with no
+   matching background — they fell back to the browser's default input
+   background (white), which combined with inherited dark text produced
+   inconsistent, sometimes unreadable contrast (e.g. white text on a
+   black background in some browser/OS dark-mode combinations). Give
+   every plain text/number input an explicit dark background + light
+   text, matching the rest of the editor's palette (#2a2a2a panels,
+   #ccc body text, #3c3c3c borders — see .pill-btn/.entity-row above). */
+input[type="text"],
+input[type="number"]{
+  background:#2a2a2a;
+  color:#ccc;
+  border:1px solid #3c3c3c;
+  border-radius:3px;
+  padding:3px 6px;
+}
+input[type="text"]:focus,
+input[type="number"]:focus{
+  outline:none;
+  border-color:#2C5D87;
+}
+
+::-webkit-scrollbar{width:12px;height:12px;}
+::-webkit-scrollbar-track{background:#282828;border-left:1px solid #1a1a1a;}
+::-webkit-scrollbar-thumb{background:#444;border:2px solid #282828;border-radius:6px;}
+::-webkit-scrollbar-thumb:hover{background:#555;}
+
+svg.icon{display:inline-block;vertical-align:middle;flex-shrink:0;}
+
+#app{display:flex;flex-direction:column;height:100vh;width:100vw;overflow:hidden;}
+/* min-height:0 is required here for the exact same reason
+   .col-hierarchy/.col-inspector need min-width:0 below: without it, a
+   flex item's automatic minimum size is its CONTENT's natural size,
+   not the size flex layout would otherwise give it. .unity-window is
+   the TOP of the vertical flex chain (#app -> unity-window ->
+   main-layout -> col-center -> col-bottom-wrap) — if a deeply nested
+   Inspector section ever wants more height than the viewport has,
+   that content-minimum bubbles all the way up through any link in
+   this chain missing min-height:0, inflating .unity-window past
+   100vh. Because .col-bottom-wrap is a fixed-height sibling further
+   down that same chain, it was the visible casualty: the inflated
+   layout pushed/clipped it down to nothing instead of the Inspector
+   simply scrolling internally. */
+.unity-window{flex:1;display:flex;flex-direction:column;min-height:0;border:1px solid #111;outline:1px solid #333;outline-offset:-1px;}
+
+/* ––––– Toolbar ––––– */
+.toolbar-wrap{display:flex;flex-direction:column;flex-shrink:0;background:#1e1e1e;border-bottom:1px solid #1a1a1a;}
+.menu-bar{height:20px;display:flex;align-items:center;padding:0 8px;background:#1e1e1e;}
+.menu-btn{padding:0 8px;height:100%;font-size:11px;color:#ccc;display:flex;align-items:center;}
+.menu-btn:hover{background:#383838;color:#eee;}
+.menu-btn.active{background:#2C5D87;color:#fff;}
+.dropdown-menu-item:hover{background:#383838;}
+
+.main-toolbar{height:30px;background:#383838;border-top:1px solid #444;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;padding:0 8px;position:relative;box-shadow:0 1px 2px rgba(0,0,0,0.1);}
+
+.tool-group{display:flex;background:#2a2a2a;border-radius:3px;border:1px solid #202020;overflow:hidden;}
+.tool-btn{width:26px;height:22px;display:flex;align-items:center;justify-content:center;border-right:1px solid #202020;color:#aaa;transition:background .1s,color .1s;}
+.tool-btn:last-child{border-right:none;}
+.tool-btn:hover{background:#333;color:#eee;}
+.tool-btn.active{background:#555;color:#eee;box-shadow:inset 0 1px 3px rgba(0,0,0,0.4);}
+
+.play-controls-wrap{position:absolute;left:50%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:2px;}
+.play-group{display:flex;background:#2a2a2a;border-radius:3px;border:1px solid #202020;padding:1px;}
+.play-btn{width:26px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:2px;color:#aaa;transition:background .1s,color .1s;}
+.play-btn:hover{background:#333;color:#eee;}
+.play-btn.active{background:#3A72B0;color:#eee;box-shadow:inset 0 1px 3px rgba(0,0,0,0.4);}
+.play-btn.paused{background:#555;color:#eee;box-shadow:inset 0 1px 3px rgba(0,0,0,0.4);}
+.play-btn:disabled{cursor:not-allowed;opacity:.35!important;pointer-events:none;}
+.play-btn:disabled:hover{background:none;color:#aaa;}
+
+.toolbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.pill-btn{display:flex;align-items:center;gap:4px;background:#2a2a2a;border:1px solid #202020;border-radius:3px;padding:2px 8px;font-size:11px;color:#ccc;}
+.pill-btn:hover{background:#333;}
+.export-zip-btn{display:flex;align-items:center;gap:6px;background:#2f6f3f;border:1px solid #4cbd6a;border-radius:4px;padding:4px 12px;font-size:12px;font-weight:700;color:#eafff0;letter-spacing:.3px;text-transform:uppercase;box-shadow:0 0 6px rgba(76,189,106,.45);}
+.export-zip-btn:hover{background:#4cbd6a;color:#fff;box-shadow:0 0 10px rgba(76,189,106,.85);}
+
+/* ––––– Tabs ––––– */
+.tabbar{display:flex;align-items:center;background:#282828;border-bottom:1px solid #1a1a1a;}
+.tab-btn{height:22px;padding:0 12px;display:flex;align-items:center;gap:6px;font-size:11px;-webkit-user-select:none;user-select:none;border-right:1px solid #1a1a1a;position:relative;background:#282828;color:#aaa;}
+.tab-btn:hover{color:#eee;}
+.tab-btn.active{background:#383838;color:#eee;}
+.tab-btn.active::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:#2C5D87;}
+.tab-extra{display:flex;gap:8px;margin-left:8px;font-size:10px;}
+.tab-extra .warn{color:#feca57;display:flex;align-items:center;gap:2px;}
+.tab-extra .err{color:#ff6b6b;display:flex;align-items:center;gap:2px;}
+
+/* ––––– Layout ––––– */
+.main-layout{display:flex;flex:1;overflow:hidden;background:#1c1c1c;min-width:0;min-height:0;}
+/* col-hierarchy and col-inspector are fixed-width side columns. Both
+   need flex-shrink:0 (never get squeezed by the flexible center
+   column) AND min-width:0 (never grow past their own width, which is
+   the flexbox default for anything with un-wrappable content — e.g.
+   a long asset/sprite name or many stacked Inspector components).
+   Without min-width:0, a flex item's "automatic minimum size" is its
+   CONTENT's natural width, not its specified width — so once enough
+   components/rows pushed the Inspector's natural content width past
+   300px, the browser silently widened .col-inspector beyond 300px to
+   fit it, stealing width from .col-center and squeezing the Console/
+   Project tabs (in .col-bottom-wrap, a child of .col-center) down to
+   nothing/off-screen. Pinning both flex-shrink and min-width fixes
+   that structurally: these columns can now only ever be exactly their
+   specified width, no matter how much content is inside — any excess
+   content scrolls/clips internally instead of pushing the layout. */
+.col-hierarchy{width:213px;flex:0 0 213px;min-width:0;max-width:213px;height:100%;min-height:0;display:flex;flex-direction:column;border-right:1px solid #1a1a1a;overflow:hidden;}
+.col-center{flex:1 1 0;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
+.col-viewport-wrap{flex:1;display:flex;flex-direction:column;min-height:0;min-width:0;}
+.col-bottom-wrap{height:213px;flex-shrink:0;border-top:1px solid #1a1a1a;overflow:hidden;min-width:0;}
+.col-inspector{width:255px;flex:0 0 255px;min-width:0;max-width:255px;height:100%;min-height:0;display:flex;flex-direction:column;border-left:1px solid #1a1a1a;overflow:hidden;}
+
+/* ––––– Hierarchy ––––– */
+.hierarchy-panel{width:100%;height:100%;display:flex;flex-direction:column;background:#383838;}
+.hierarchy-toolbar{display:flex;align-items:center;gap:4px;padding:4px;border-bottom:1px solid #202020;}
+.hierarchy-add-btn{display:flex;align-items:center;gap:4px;font-size:11px;color:#ccc;padding:2px 4px;border-radius:2px;border:1px solid transparent;}
+.hierarchy-add-btn:hover{background:#444;border-color:#202020;}
+.hierarchy-search{display:flex;flex:1;align-items:center;background:#2a2a2a;border:1px solid #202020;border-radius:8px;padding:0 8px;height:18px;}
+.hierarchy-search input{background:transparent;border:none;outline:none;font-size:11px;color:#eee;width:100%;}
+.hierarchy-tree{flex:1;overflow-y:auto;background:#383838;padding:4px 0;-webkit-user-select:none;user-select:none;}
+.scene-root{display:flex;align-items:center;padding:2px 4px;color:#eee;cursor:pointer;}
+.scene-root:hover{background:#444;}
+/* Hierarchy drop-target highlight — shown on the scene-root header
+   while a Hierarchy entity/folder row is being dragged over it, so
+   dropping there to move something back to the top level has a clear
+   visual target. See EditorEvents.js's "dragover"/"drop" handlers for
+   [data-drag-role="hierarchy-root"]. */
+.scene-root.drop-target{background:#2C5D87;outline:1px dashed #7fb2e0;outline-offset:-1px;}
+.entity-row{display:flex;align-items:center;padding:2px 8px 2px 20px;cursor:pointer;color:#ccc;}
+.entity-row:hover{background:#444;}
+.entity-row.selected{background:#2C5D87;color:#fff;}
+.entity-row.dragging{opacity:.4;}
+.entity-row .entity-inner{display:flex;align-items:center;min-width:0;flex:1;}
+.entity-row .entity-icon{width:12px;height:12px;margin-right:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.entity-row .entity-name{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;}
+
+/* Hierarchy folders — see editor/panels/Hierarchy.js and
+   runtime/core/World.js's hierarchyFolders. Visually similar to
+   .entity-row (same row height/hover feel) but with its own chevron,
+   inline rename input, child count, and a delete button that only
+   appears on hover (same reveal-on-hover convention as .asset-item's
+   own .asset-delete-btn below). */
+.folder-row{display:flex;align-items:center;padding:2px 8px 2px 6px;cursor:pointer;color:#ccc;position:relative;}
+.folder-row:hover{background:#444;}
+.folder-row.dragging{opacity:.4;}
+/* Drop-target highlight while another entity/folder is being dragged
+   over this folder row — toggled directly in EditorEvents.js's
+   "dragover" handler for [data-drag-role="hierarchy-folder-row"]
+   (and removed again on dragleave/drop/dragend), rather than a plain
+   :hover, so it's visually distinct from an ordinary mouseover and
+   only appears during an actual drag. */
+.folder-row.drop-target{background:#2C5D87;outline:1px dashed #7fb2e0;outline-offset:-1px;}
+.folder-row .folder-chevron{width:10px;height:10px;margin-right:2px;display:flex;align-items:center;justify-content:center;flex-shrink:0;opacity:.8;}
+.folder-row .folder-icon{width:12px;height:12px;margin-right:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#e8c777;}
+.folder-row .folder-name{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;flex:1;min-width:0;}
+.folder-row .folder-count{font-size:10px;color:#888;margin-left:6px;flex-shrink:0;}
+.folder-row .folder-delete-btn{display:flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:4px;border-radius:2px;color:#999;opacity:0;flex-shrink:0;}
+.folder-row:hover .folder-delete-btn{opacity:1;}
+.folder-row .folder-delete-btn:hover{background:#5a2a2a;color:#f77;}
+.hierarchy-folder-rename-input{background:var(--bgInputFocus,#1e1e1e);border:1px solid var(--accent,#2C5D87);border-radius:2px;color:#fff;font-size:11px;font-weight:600;padding:0 4px;flex:1;min-width:0;outline:none;}
+.folder-children{display:flex;flex-direction:column;}
+
+/* ––––– Viewport ––––– */
+.viewport-toolbar2{height:22px;display:flex;align-items:center;padding:0 8px;background:#383838;border-bottom:1px solid #202020;font-size:10px;color:#ccc;gap:8px;box-shadow:0 1px 2px rgba(0,0,0,.1);z-index:10;}
+.viewport-toolbar2 button{display:flex;align-items:center;gap:4px;}
+.viewport-toolbar2 button:hover{color:#eee;}
+.vsep{width:1px;height:12px;background:#555;}
+.viewport-toolbar2 .zoom-label{font-family:monospace;color:#999;-webkit-user-select:none;user-select:none;}
+.viewport-toolbar2 .pan-hint{margin-left:auto;color:#777;font-style:italic;-webkit-user-select:none;user-select:none;}
+/* The scene canvas gets the extra editing room by proportionally reducing
+   the fixed hierarchy/inspector/bottom-panel chrome above. The canvas remains
+   flex-sized, so this grows it in both dimensions without distortion. */
+.viewport-canvas{flex:1;position:relative;background:#282828;overflow:hidden;min-height:0;}
+.viewport-canvas canvas{display:block;width:100%;height:100%;}
+/* Shown when SceneViewport.js detects the renderer silently stopped
+   drawing (WebGL context lost, or a render-sync pass threw) — see
+   Viewport.js's _rendererLostBanner() doc comment. Sits above the PIXI
+   canvas (which is still present in the DOM underneath, just not
+   drawing) rather than replacing it, so the moment rendering actually
+   resumes the canvas is already there with nothing to remount. */
+.viewport-renderer-lost-banner{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:5;display:flex;align-items:center;gap:8px;max-width:min(90%,480px);padding:8px 14px;background:#3a2a12;border:1px solid #b8791a;color:#f0c674;font-size:12px;line-height:1.4;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.4);pointer-events:none;}
+.viewport-renderer-lost-banner svg{flex-shrink:0;stroke:#f0c674;}
+
+/* ––––– Inspector ––––– */
+.inspector-panel{width:100%;background:#383838;display:flex;flex-direction:column;overflow:hidden;height:100%;min-height:0;}
+.inspector-tabbar{display:flex;align-items:center;background:#282828;border-bottom:1px solid #1a1a1a;justify-content:space-between;padding-right:4px;flex-shrink:0;}
+.inspector-tabbar button.more{padding:4px;color:#aaa;}
+.inspector-tabbar button.more:hover{color:#eee;}
+.inspector-body{flex:1;overflow-y:auto;overflow-x:hidden;min-width:0;min-height:0;}
+.inspector-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#888;font-size:11px;padding:16px;text-align:center;}
+
+/* Informational per-component notes and inline guidance are hidden by
+   default so a fully-built-out entity's Inspector stays compact. The
+   small info button in the Inspector tabbar adds .show-component-notes
+   to body to reveal them. Actionable warnings (⚠️, e.g. "No Collider
+   2D...") use the separate .static-body-warning class and remain visible. */
+.static-body-note{display:none;}
+body.show-component-notes .static-body-note{display:block;}
+.inspector-note-inline{display:none;}
+body.show-component-notes .inspector-note-inline{display:inline;}
+.inspector-notes-btn{color:#8a93a0;}
+.inspector-notes-btn.active{color:#4fa8e8;}
+
+.obj-header{padding:8px;border-bottom:1px solid #202020;background:#383838;display:flex;flex-direction:column;gap:8px;}
+.obj-header-row1{display:flex;align-items:center;gap:6px;}
+.obj-header-row1 input[type="checkbox"]{accent-color:#2C5D87;margin:0;}
+.obj-name-input{flex:1;background:#2a2a2a;border:1px solid #202020;padding:2px 4px;font-size:12px;font-weight:bold;color:#eee;outline:none;}
+.obj-name-input:hover{border-color:#444;}
+.obj-name-input:focus{border-color:#2C5D87;}
+.obj-header-icon-btn{flex-shrink:0;display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:2px;color:#aaa;background:transparent;border:1px solid transparent;}
+.obj-header-icon-btn:hover{background:#444;border-color:#202020;color:#eee;}
+.obj-header-row2{display:flex;align-items:center;gap:8px;width:100%;padding-top:4px;}
+.tag-layer-group{display:flex;align-items:center;gap:4px;flex:1;}
+.tag-layer-group span{font-size:11px;color:#ccc;width:30px;flex-shrink:0;}
+.tag-delete-btn{flex-shrink:0;background:none;border:none;color:#888;font-size:11px;padding:0 3px;cursor:pointer;line-height:1;border-radius:2px;}
+.tag-delete-btn:hover{color:#e06c75;background:#3a2020;}
+
+/* Inspector's "Prefab" strip (see Inspector.js's renderPrefabSection) —
+   a thin banner just below the object header, in the same spot Unity
+   shows its own blue prefab bar. Deliberately a slightly different
+   background from .obj-header's #383838 so it reads as its own row
+   rather than a continuation of the header. */
+.prefab-strip{display:flex;flex-direction:column;gap:6px;padding:6px 8px;background:#2e3b47;border-bottom:1px solid #202020;}
+.prefab-strip-row{display:flex;align-items:center;gap:6px;color:#9fc4e8;}
+.prefab-strip-row .icon{flex-shrink:0;}
+.prefab-strip-name{font-size:11px;font-weight:bold;color:#cfe4f7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.prefab-strip-override-count{font-size:10px;color:#e0b25c;background:#3a331f;border-radius:8px;padding:1px 6px;margin-left:auto;flex-shrink:0;}
+.prefab-strip-actions{display:flex;gap:4px;flex-wrap:wrap;}
+.prefab-strip-btn{display:flex;align-items:center;gap:4px;font-size:10px;color:#ccc;padding:3px 6px;border-radius:2px;border:1px solid #3a4a58;background:#324150;}
+.prefab-strip-btn:hover{background:#3d5062;border-color:#4a6478;}
+.prefab-strip-btn-primary{background:#2C5D87;border-color:#3a75ab;color:#fff;}
+.prefab-strip-btn-primary:hover{background:#347099;}
+
+.section{border-bottom:1px solid #202020;}
+.section-header{display:flex;align-items:center;width:100%;background:#3e3e3e;border-top:1px solid #4a4a4a;border-bottom:1px solid #1a1a1a;-webkit-user-select:none;user-select:none;}
+.section-toggle{display:flex;align-items:center;justify-content:center;width:16px;height:20px;color:#aaa;}
+.section-toggle:hover{color:#eee;}
+.section-title-row{display:flex;align-items:center;gap:4px;padding:0 4px;height:20px;flex:1;}
+.section-title-row input[type="checkbox"]{accent-color:#2C5D87;width:11px;height:11px;margin:0 4px 0 0;}
+.section-title-row .icon-wrap{color:#ccc;opacity:.8;display:flex;}
+.section-title-row span{font-size:11px;color:#eee;font-weight:bold;}
+.section-settings{padding:0 8px;color:#aaa;}
+.section-settings:hover{color:#eee;}
+.section-body{padding:8px 12px;display:flex;flex-direction:column;gap:4px;background:#383838;min-width:0;}
+
+.row{display:flex;align-items:flex-start;gap:4px;width:100%;min-width:0;}
+.row-label{font-size:11px;color:#ccc;width:35%;flex-shrink:0;padding-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-user-select:none;user-select:none;}
+.row-content{flex:1;min-width:0;}
+
+.vec3{display:flex;align-items:center;gap:4px;width:100%;}
+.numinput{display:flex;align-items:center;gap:2px;flex:1;min-width:0;background:#2a2a2a;border:1px solid #202020;border-radius:2px;overflow:hidden;}
+.numinput:hover{border-color:#444;}
+.numinput:focus-within{border-color:#2C5D87;}
+.numinput .axis-label{font-size:10px;color:#888;font-weight:bold;width:12px;flex-shrink:0;text-align:center;-webkit-user-select:none;user-select:none;cursor:ew-resize;}
+.numinput input{flex:1;width:100%;background:transparent;border:none;padding:1px 4px;font-size:11px;color:#eee;outline:none;font-family:monospace;}
+
+.dropdown-input{position:relative;width:100%;}
+.dropdown-input select{width:100%;appearance:none;-webkit-appearance:none;background:#2a2a2a;border:1px solid #202020;border-radius:2px;padding:1px 6px;font-size:11px;color:#eee;outline:none;}
+.dropdown-input select:hover{border-color:#444;}
+.dropdown-input .chev{position:absolute;right:4px;top:50%;transform:translateY(-50%);color:#888;pointer-events:none;}
+
+.sprite-row{display:flex;align-items:center;gap:4px;width:100%;min-width:0;}
+.sprite-box{flex:1;min-width:0;background:#2a2a2a;border:1px solid #202020;border-radius:2px;padding:1px 4px;font-size:11px;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sprite-pick{width:18px;height:18px;background:#333;border:1px solid #202020;border-radius:2px;display:flex;align-items:center;justify-content:center;}
+.sprite-pick:hover{background:#444;}
+.sprite-pick span{width:6px;height:6px;border-radius:50%;background:#ccc;}
+.color-swatch{display:flex;width:100%;height:16px;border:1px solid #202020;border-radius:2px;cursor:pointer;}
+.color-swatch-input{-webkit-appearance:none;appearance:none;width:100%;height:16px;border:1px solid #202020;border-radius:2px;cursor:pointer;padding:0;background:none;}
+.color-swatch-input::-webkit-color-swatch-wrapper{padding:0;}
+.color-swatch-input::-webkit-color-swatch{border:none;border-radius:1px;}
+.color-swatch-input::-moz-color-swatch{border:none;border-radius:1px;}
+.flip-row{display:flex;gap:16px;}
+.flip-row label{display:flex;align-items:center;gap:4px;font-size:11px;color:#ccc;}
+
+.export-size-readout{font-size:11px;color:#8FC153;font-family:monospace;}
+
+.constraints-row{padding-top:4px;border-top:1px solid #444;margin-top:4px;}
+.constraints-row .ctitle{display:flex;align-items:center;gap:4px;font-size:11px;color:#eee;font-weight:bold;padding:4px 0;}
+
+.addcomp-wrap{padding:16px;display:flex;justify-content:center;border-top:1px solid #202020;}
+.addcomp-btn{background:#444;border:1px solid #202020;color:#eee;font-size:11px;padding:3px 32px;border-radius:3px;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+.addcomp-btn:hover{background:#555;}
+
+.animwin-wrap{padding:0 16px 16px;}
+.animwin-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;padding:4px 8px;border-radius:3px;background:#2C5D87;color:#fff;border:1px solid #1a1a1a;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+.animwin-btn:hover{background:#3A72B0;}
+
+/* ––––– Bottom Panel ––––– */
+.bottom-panel{display:flex;flex-direction:column;background:#383838;height:100%;border-top:1px solid #1a1a1a;}
+.bottom-body{flex:1;min-height:0;display:flex;}
+.proj-tree{width:200px;border-right:1px solid #1a1a1a;background:#383838;overflow-y:auto;padding:4px 0;}
+.proj-tree .row1{display:flex;align-items:center;padding:2px 4px;color:#eee;cursor:pointer;}
+.proj-tree .row1:hover{background:#444;}
+.proj-tree .rowsub{display:flex;align-items:center;padding:2px 8px 2px 20px;color:#ccc;cursor:pointer;}
+.proj-tree .rowsub:hover{background:#444;}
+.proj-tree .rowsub.selected{background:#2C5D87;color:#fff;}
+.proj-assets{flex:1;min-height:0;display:flex;flex-direction:column;background:#282828;}
+.proj-path{height:22px;border-bottom:1px solid #202020;background:#383838;display:flex;align-items:center;justify-content:space-between;padding:0 8px;}
+.proj-path span{font-size:11px;color:#eee;}
+.import-sprite-btn{display:flex;align-items:center;gap:4px;font-size:11px;color:#eee;background:#2C5D87;border:1px solid #1a1a1a;border-radius:3px;padding:2px 8px;cursor:pointer;}
+.import-sprite-btn:hover{background:#3A72B0;}
+.proj-grid{flex:1;padding:8px;overflow-y:auto;display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap;}
+.asset-empty-hint{color:#888;font-size:11px;padding:16px;}
+.asset-item{display:flex;flex-direction:column;align-items:center;width:70px;gap:4px;cursor:grab;}
+.asset-thumb{width:60px;height:60px;background:#333;border:1px solid #202020;border-radius:2px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 2px rgba(0,0,0,.1);position:relative;overflow:hidden;color:#aaa;}
+.asset-item:hover .asset-thumb{border-color:#2C5D87;}
+/* Script assets in the bottom panel's Scripts folder use a custom
+   thumbnail image instead of the generic "code" glyph icon other
+   asset kinds fall back to. */
+.asset-thumb-script{background-image:url(../assets/script-thumb.webp);background-size:cover;background-position:center;}
+.asset-ext{position:absolute;bottom:0;right:0;background:#222;color:#ccc;font-size:8px;padding:0 4px;border-top:1px solid #202020;border-left:1px solid #202020;}
+.asset-label{font-size:11px;color:#ccc;width:100%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:2px;}
+.asset-item:hover .asset-label{color:#eee;background:#2C5D87;padding:0 4px;}
+
+/* Delete "×" (all four asset kinds) and Duplicate (scenes only)
+   buttons overlaid on an asset-thumb's corner. Hidden until the whole
+   .asset-item is hovered/touched so the grid doesn't look cluttered
+   at rest — matches the same hover-reveal convention already used for
+   .asset-item:hover .asset-thumb's border-color highlight just above.
+   Positioned with pointer-events left on (unlike a purely decorative
+   overlay) since these need their own independent click target,
+   separate from the parent .asset-item's own click/drag/dblclick
+   handlers. No explicit stopPropagation() needed for that separation:
+   EditorEvents.js's single delegated click listener resolves its
+   target via e.target.closest("[data-action]"), which — being nested
+   INSIDE .asset-item — finds this button itself first, not the
+   parent's data-action, so only the button's own case (delete-*,
+   duplicate-scene-file) ever fires. */
+.asset-delete-btn,.asset-dup-btn{
+  position:absolute;top:2px;
+  width:16px;height:16px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(20,20,20,.85);color:#ccc;
+  border:1px solid #202020;
+  opacity:0;pointer-events:none;
+  transition:opacity .1s, background .1s, color .1s;
+  z-index:1;
+}
+.asset-delete-btn{right:2px;}
+.asset-dup-btn{left:2px;}
+.asset-item:hover .asset-delete-btn,.asset-item:hover .asset-dup-btn{opacity:1;pointer-events:auto;}
+.asset-delete-btn:hover:not(:disabled){background:#c0392b;color:#fff;border-color:#a5281b;}
+.asset-dup-btn:hover{background:#2C5D87;color:#fff;border-color:#1a4266;}
+.asset-delete-btn:disabled{cursor:not-allowed;opacity:.35!important;pointer-events:auto;}
+/* On a touchscreen/Chromebook there's no ":hover" to reveal these on —
+   always-visible-but-subtle is the standard touch-friendly fallback
+   (same reasoning as why mobile file browsers show a visible delete
+   affordance instead of relying on a desktop-only hover state). */
+@media (hover: none){
+  .asset-delete-btn,.asset-dup-btn{opacity:.55;pointer-events:auto;}
+}
+
+/* Scene files (Project > Scenes folder) — same visual language as a
+   sprite .asset-item, plus an "active/open" highlight for whichever
+   scene is currently loaded into the World. */
+.scene-file-item{cursor:pointer;}
+.scene-file-item .asset-thumb{color:#8ab4e0;}
+.scene-file-item.active .asset-thumb{border-color:#2C5D87;box-shadow:0 0 0 1px #2C5D87;}
+.scene-file-item.active .asset-label{color:#8ab4e0;}
+.scene-file-rename-input{background:var(--bgInputFocus,#1e1e1e);border:1px solid var(--accent,#2C5D87);border-radius:2px;color:#fff;font-size:11px;padding:1px 4px;width:100%;outline:none;text-align:center;}
+
+.console-toolbar{height:22px;display:flex;align-items:center;padding:0 8px;background:#383838;border-bottom:1px solid #202020;gap:8px;}
+.console-clear{font-size:11px;color:#ccc;background:#444;padding:1px 8px;border-radius:2px;border:1px solid #202020;}
+.console-clear:hover{background:#555;color:#eee;}
+.console-toggle{font-size:11px;color:#ccc;padding:1px 4px;border-radius:2px;}
+.console-toggle:hover{background:#444;color:#eee;}
+.console-counts{display:flex;border:1px solid #202020;border-radius:2px;overflow:hidden;background:#2a2a2a;height:18px;}
+.console-counts button{display:flex;align-items:center;gap:4px;padding:0 8px;font-size:10px;color:#ccc;border-right:1px solid #202020;background:#444;}
+.console-counts button:last-child{border-right:none;}
+.console-counts button:hover{background:#555;}
+.console-list{flex:1;overflow-y:auto;padding:4px 0;}
+.log-row{display:flex;align-items:flex-start;gap:8px;padding:4px 16px;border-bottom:1px solid #202020;font-size:11px;cursor:pointer;color:#ccc;}
+.log-row:hover{background:#333;}
+.log-row.warn{color:#feca57;}
+.log-row.error{color:#ff6b6b;}
+.log-row .licon{flex-shrink:0;padding-top:2px;}
+.log-row .lmsg{flex:1;font-family:monospace;word-break:break-all;}
+
+/* ––––– Animation Editor Modal (outer chrome, shared by the frame-based panel below) ––––– */
+.anim-overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 10px 25px rgba(0,0,0,.5));}
+.anim-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.4);}
+.anim-window{width:920px;height:560px;background:#383838;border:1px solid #111;border-radius:3px;display:flex;flex-direction:column;position:relative;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,.5);}
+.anim-header{height:22px;background:#282828;border-bottom:1px solid #111;display:flex;align-items:center;justify-content:space-between;padding:0 8px;-webkit-user-select:none;user-select:none;flex-shrink:0;}
+.anim-header .title{display:flex;align-items:center;gap:6px;font-size:11px;color:#ccc;}
+.anim-close{padding:2px;color:#aaa;border-radius:2px;}
+.anim-close:hover{color:#eee;background:#ff453a;}
+
+/* Component-add / remove buttons (Inspector.js) — shared across every
+   component section, not just Sprite Animation, so defined once here. */
+.anim-open-btn,.removecomp-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:4px;font-size:11px;padding:4px 8px;border-radius:3px;border:1px solid #1a1a1a;box-shadow:0 1px 2px rgba(0,0,0,.1);}
+.anim-open-btn{background:#2C5D87;color:#fff;}
+.anim-open-btn:hover{background:#3A72B0;}
+.removecomp-btn{background:#4a3030;color:#e0a0a0;}
+.removecomp-btn:hover{background:#5c3838;color:#ffb0b0;}
+
+/* ––––– Animation Editor: frame-based panel body ––––– */
+.animpanel-empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#8a93a0;padding:24px;text-align:center;}
+.animpanel-empty p{font-size:12px;margin:0;max-width:320px;}
+
+.animpanel-toolbar{height:28px;background:#383838;border-bottom:1px solid #202020;display:flex;align-items:center;padding:0 8px;gap:6px;flex-shrink:0;}
+.animpanel-clip-picker{flex:1;min-width:0;max-width:220px;}
+.animpanel-clip-picker-empty{flex:1;font-size:11px;color:#8a93a0;}
+.animpanel-rename-input{flex:1;max-width:220px;background:#2a2a2a;border:1px solid #2C5D87;border-radius:2px;padding:2px 6px;font-size:11px;color:#eee;outline:none;}
+.animpanel-ibtn{width:22px;height:22px;display:flex;align-items:center;justify-content:center;color:#ccc;border-radius:2px;flex-shrink:0;}
+.animpanel-ibtn:hover{background:#4a4a4a;}
+.animpanel-ibtn.danger:hover{background:#7a3030;color:#ffb0b0;}
+.animpanel-ibtn .icon.flip{transform:scaleX(-1);}
+
+.animpanel-body{flex:1;display:flex;overflow:hidden;min-height:0;}
+
+.animpanel-preview-col{width:230px;flex-shrink:0;border-right:1px solid #1a1a1a;background:#333;display:flex;flex-direction:column;overflow-y:auto;}
+.animpanel-preview{height:150px;flex-shrink:0;background:repeating-conic-gradient(#2b2b2b 0% 25%,#242424 0% 50%) 50%/16px 16px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid #202020;overflow:hidden;}
+.animpanel-preview-stage{position:relative;max-width:100%;max-height:100%;}
+.animpanel-preview img{image-rendering:pixelated;}
+.animpanel-collider-toggle{display:flex;align-items:center;gap:5px;font-size:10px;color:#aaa;padding:0 8px 6px;-webkit-user-select:none;user-select:none;cursor:pointer;}
+.animpanel-preview-empty{display:flex;flex-direction:column;align-items:center;gap:6px;color:#666;}
+.animpanel-preview-empty span{font-size:10px;}
+
+.animpanel-transport{display:flex;align-items:center;justify-content:center;gap:4px;padding:6px 8px;border-bottom:1px solid #202020;flex-shrink:0;}
+.animpanel-play{background:#2C5D87;color:#fff;}
+.animpanel-play:hover{background:#3A72B0;}
+.animpanel-frame-counter{font-size:10px;color:#aaa;font-family:monospace;margin-left:4px;}
+
+.animpanel-clip-settings{padding:8px;border-bottom:1px solid #202020;display:flex;flex-direction:column;gap:4px;flex-shrink:0;}
+.animpanel-collider-override{padding:8px;display:flex;flex-direction:column;gap:4px;}
+
+.animpanel-frames-col{flex:1;display:flex;flex-direction:column;overflow:hidden;background:#2f2f2f;min-width:0;}
+.animpanel-frames-head{height:26px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 8px;border-bottom:1px solid #202020;background:#3a3a3a;}
+.animpanel-frames-head span{font-size:11px;color:#ccc;font-weight:bold;}
+.animpanel-import-btns{display:flex;gap:4px;}
+.animpanel-import-btn{display:flex;align-items:center;gap:3px;font-size:10px;color:#ddd;background:#454545;border:1px solid #1a1a1a;border-radius:2px;padding:2px 6px;cursor:pointer;-webkit-user-select:none;user-select:none;}
+.animpanel-import-btn:hover{background:#535353;}
+
+.animpanel-frame-grid{flex:1;overflow-y:auto;display:flex;flex-wrap:wrap;align-content:flex-start;gap:8px;padding:10px;}
+.animpanel-frames-empty{width:100%;padding:24px;text-align:center;color:#777;font-size:11px;}
+.animpanel-frame{position:relative;width:64px;height:64px;background:repeating-conic-gradient(#2b2b2b 0% 25%,#242424 0% 50%) 50%/12px 12px;border:2px solid #1a1a1a;border-radius:3px;display:flex;align-items:center;justify-content:center;cursor:grab;flex-shrink:0;}
+.animpanel-frame:hover{border-color:#555;}
+.animpanel-frame.active{border-color:#8FC153;}
+.animpanel-frame.dragging{opacity:.35;}
+.animpanel-frame img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;pointer-events:none;}
+.animpanel-frame-missing{color:#666;font-size:20px;}
+.animpanel-frame-num{position:absolute;bottom:1px;left:3px;font-size:9px;color:#ccc;background:rgba(0,0,0,.55);padding:0 3px;border-radius:2px;-webkit-user-select:none;user-select:none;pointer-events:none;}
+.animpanel-frame-del{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;background:#7a3030;color:#fff;display:flex;align-items:center;justify-content:center;border:1px solid #1a1a1a;opacity:0;transition:opacity .1s;}
+.animpanel-frame:hover .animpanel-frame-del{opacity:1;}
+.animpanel-frame-del:hover{background:#a83a3a;}
+
+
+/* Console log count badge — shown on the right of a log row when
+   the same message repeats (Unity-style "hi ×30" collapse). */
+.log-count{margin-left:auto;flex-shrink:0;min-width:18px;height:16px;padding:0 5px;border-radius:8px;background:#3a3a3a;color:#bbb;font-size:10px;font-family:monospace;display:inline-flex;align-items:center;justify-content:center;font-weight:600;border:1px solid #222;}
+.log-row.error .log-count{background:#4a2020;color:#ff9090;}
+.log-row.warn .log-count{background:#3a2e10;color:#e8b860;}
+
+/* ––––– Status Bar ––––– */
+.statusbar{height:22px;background:#282828;border-top:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between;padding:0 8px;font-size:10px;color:#aaa;flex-shrink:0;}
+.statusbar .left{display:flex;align-items:center;gap:8px;}
+.statusbar .left svg{color:#ccc;}
+.statusbar .right{display:flex;align-items:center;gap:16px;color:#888;}
+.statusbar .right .mono{font-family:monospace;}
+
+/* editor/panels/TilesetPanel.js — 4x4 autotile tileset authoring window.
+   Reuses .anim-overlay/.anim-backdrop/.anim-header (same modal-window
+   chrome as AnimationWindow.js) so tool windows look consistent. */
+.tileset-window{width:520px;height:auto;max-height:640px;}
+.tileset-body{display:flex;flex-direction:column;gap:10px;padding:14px;overflow-y:auto;}
+.tileset-toolbar{display:flex;gap:8px;flex-wrap:wrap;}
+.tileset-import-btn{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#2f2f2f;border:1px solid #444;border-radius:3px;color:#ddd;font-size:11px;cursor:pointer;-webkit-user-select:none;user-select:none;}
+.tileset-import-btn:hover{border-color:#666;background:#383838;}
+.tileset-hint{font-size:10px;color:#888;}
+.tileset-grid-wrap{display:flex;justify-content:center;padding:6px 0;}
+.tileset-4x4-grid{display:grid;grid-template-columns:repeat(4,84px);grid-template-rows:repeat(4,84px);gap:6px;}
+.tileset-slot{position:relative;width:84px;height:84px;background:repeating-conic-gradient(#2b2b2b 0% 25%,#242424 0% 50%) 50%/12px 12px;border:2px solid #1a1a1a;border-radius:3px;display:flex;align-items:center;justify-content:center;cursor:grab;overflow:hidden;}
+.tileset-slot:hover{border-color:#555;}
+.tileset-slot.dragging{opacity:.35;}
+.tileset-slot img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;pointer-events:none;}
+.tileset-slot-empty{width:100%;height:100%;display:flex;align-items:center;justify-content:center;}
+.tileset-slot-empty-label{display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#666;cursor:pointer;}
+.tileset-slot-empty-label:hover{color:#999;}
+.tileset-slot-label{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:8px;color:#ccc;background:rgba(0,0,0,.55);-webkit-user-select:none;user-select:none;pointer-events:none;}
+.tileset-sizefields{display:flex;gap:16px;font-size:11px;color:#ccc;justify-content:center;padding-top:4px;}
+.tileset-sizefields label{display:flex;align-items:center;gap:6px;}
+.tileset-sizefields input{width:60px;background:#2a2a2a;border:1px solid #3a3a3a;color:#dcdcdc;padding:3px 6px;border-radius:3px;font-size:11px;}
+.tileset-empty{padding:24px;text-align:center;color:#888;font-size:11px;}
+
+/* Prefab update transform options. All off by default so updating a prefab
+   never unexpectedly changes an existing instance's placement. */
+.prefab-transform-options {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-right: 2px;
+}
+.prefab-transform-options-label {
+  font-size: 10px;
+  color: var(--text-secondary, #aeb7c4);
+  white-space: nowrap;
+}
+.prefab-transform-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-secondary, #aeb7c4);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.prefab-transform-option input {
+  margin: 0;
+  width: 11px;
+  height: 11px;
+  accent-color: #2c5d87;
+}

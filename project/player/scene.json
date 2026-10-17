@@ -1,0 +1,120 @@
+{
+  "sceneName": "Collision Test Scene",
+  "entities": [
+    {
+      "name": "Main Camera",
+      "tag": "MainCamera",
+      "active": true,
+      "components": {
+        "Transform": { "x": 0, "y": -150 },
+        "Camera": { "isMain": true, "backgroundColor": "#1a1a2e" }
+      }
+    },
+
+    {
+      "name": "FpsDebugToggle",
+      "tag": "Untagged",
+      "active": true,
+      "components": {
+        "Transform": { "x": 0, "y": 0 },
+        "Script": {
+          "scriptName": "FpsDebugToggle",
+          "source": "function onStart() {\n  debug.show();\n}\n"
+        }
+      }
+    },
+
+    {
+      "name": "CapsuleVsDynamic",
+      "tag": "Untagged",
+      "active": true,
+      "components": {
+        "Transform": { "x": -300, "y": -250 },
+        "SpriteRenderer": { "spriteKey": "capsule", "color": "#38bdf8" },
+        "Collider2D": { "shape": "Capsule" },
+        "Rigidbody2D": { "bodyType": "Kinematic" },
+        "Script": {
+          "scriptName": "KinematicCollisionTester",
+          "source": "function onStart() {\n  this.rigidbody.velocityY = 120;\n  var label = this.x < -100 ? 'Dynamic' : (this.x > 100 ? 'Kinematic' : 'Static');\n  console.log('[KinematicCapsule vs ' + label + '] falling, testing collision...');\n}\n\nfunction onCollisionEnter(other) {\n  var label = this.x < -100 ? 'Dynamic' : (this.x > 100 ? 'Kinematic' : 'Static');\n  console.log('[KinematicCapsule vs ' + label + '] COLLISION ENTER \u2014 collision fix confirmed working!');\n  this.sprite.color = '#22c55e';\n  this.rigidbody.velocityY = 0;\n}\n\nfunction onCollisionExit(other) {\n  var label = this.x < -100 ? 'Dynamic' : (this.x > 100 ? 'Kinematic' : 'Static');\n  console.log('[KinematicCapsule vs ' + label + '] collision exit');\n}\n"
+        }
+      }
+    },
+    {
+      "name": "DynamicBox",
+      "tag": "Untagged",
+      "active": true,
+      "components": {
+        "Transform": { "x": -300, "y": -50, "scaleX": 3, "scaleY": 1 },
+        "SpriteRenderer": { "spriteKey": "square", "color": "#f97316" },
+        "Collider2D": { "shape": "Box" },
+        "Rigidbody2D": { "bodyType": "Dynamic", "mass": 1, "gravityScale": 0 },
+        "Script": {
+          "scriptName": "TargetReactor",
+          "source": "function onCollisionEnter(other) {\n  console.log('[DynamicBox] hit by kinematic capsule');\n  this.sprite.color = '#22c55e';\n}\n"
+        }
+      }
+    },
+
+    {
+      "name": "CapsuleVsStatic",
+      "tag": "Untagged",
+      "active": true,
+      "components": {
+        "Transform": { "x": 0, "y": -250 },
+        "SpriteRenderer": { "spriteKey": "capsule", "color": "#38bdf8" },
+        "Collider2D": { "shape": "Capsule" },
+        "Rigidbody2D": { "bodyType": "Kinematic" },
+        "Script": {
+          "scriptName": "KinematicCollisionTester",
+          "source": "function onStart() {\n  this.rigidbody.velocityY = 120;\n  var label = this.x < -100 ? 'Dynamic' : (this.x > 100 ? 'Kinematic' : 'Static');\n  console.log('[KinematicCapsule vs ' + label + '] falling, testing collision...');\n}\n\nfunction onCollisionEnter(other) {\n  var label = this.x < -100 ? 'Dynamic' : (this.x > 100 ? 'Kinematic' : 'Static');\n  console.log('[KinematicCapsule vs ' + label + '] COLLISION ENTER \u2014 collision fix confirmed working!');\n  this.sprite.color = '#22c55e';\n  this.rigidbody.velocityY = 0;\n}\n\nfunction onCollisionExit(other) {\n  var label = this.x < -100 ? 'Dynamic' : (this.x > 100 ? 'Kinematic' : 'Static');\n  console.log('[KinematicCapsule vs ' + label + '] collision exit');\n}\n"
+        }
+      }
+    },
+    {
+      "name": "StaticBox",
+      "tag": "Untagged",
+      "active": true,
+      "components": {
+        "Transform": { "x": 0, "y": -50, "scaleX": 3, "scaleY": 1 },
+        "SpriteRenderer": { "spriteKey": "square", "color": "#9ca3af" },
+        "Collider2D": { "shape": "Box" },
+        "Rigidbody2D": { "bodyType": "Static" },
+        "Script": {
+          "scriptName": "TargetReactor",
+          "source": "function onCollisionEnter(other) {\n  console.log('[StaticBox] hit by kinematic capsule');\n  this.sprite.color = '#22c55e';\n}\n"
+        }
+      }
+    },
+
+    {
+      "name": "CapsuleVsKinematic",
+      "tag": "Untagged",
+      "active": true,
+      "components": {
+        "Transform": { "x": 300, "y": -250 },
+        "SpriteRenderer": { "spriteKey": "capsule", "color": "#38bdf8" },
+        "Collider2D": { "shape": "Capsule" },
+        "Rigidbody2D": { "bodyType": "Kinematic" },
+        "Script": {
+          "scriptName": "KinematicCollisionTester",
+          "source": "function onStart() {\n  this.rigidbody.velocityY = 120;\n  var label = this.x < -100 ? 'Dynamic' : (this.x > 100 ? 'Kinematic' : 'Static');\n  console.log('[KinematicCapsule vs ' + label + '] falling, testing collision...');\n}\n\nfunction onCollisionEnter(other) {\n  var label = this.x < -100 ? 'Dynamic' : (this.x > 100 ? 'Kinematic' : 'Static');\n  console.log('[KinematicCapsule vs ' + label + '] COLLISION ENTER \u2014 collision fix confirmed working!');\n  this.sprite.color = '#22c55e';\n  this.rigidbody.velocityY = 0;\n}\n\nfunction onCollisionExit(other) {\n  var label = this.x < -100 ? 'Dynamic' : (this.x > 100 ? 'Kinematic' : 'Static');\n  console.log('[KinematicCapsule vs ' + label + '] collision exit');\n}\n"
+        }
+      }
+    },
+    {
+      "name": "KinematicBox",
+      "tag": "Untagged",
+      "active": true,
+      "components": {
+        "Transform": { "x": 300, "y": -50, "scaleX": 3, "scaleY": 1 },
+        "SpriteRenderer": { "spriteKey": "square", "color": "#a78bfa" },
+        "Collider2D": { "shape": "Box" },
+        "Rigidbody2D": { "bodyType": "Kinematic" },
+        "Script": {
+          "scriptName": "TargetReactor",
+          "source": "function onCollisionEnter(other) {\n  console.log('[KinematicBox] hit by kinematic capsule');\n  this.sprite.color = '#22c55e';\n}\n"
+        }
+      }
+    }
+  ]
+}

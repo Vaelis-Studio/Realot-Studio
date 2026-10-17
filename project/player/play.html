@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<title>Realot Game</title>
+<script src="../vendor/pixi/pixi.min.js"></script>
+<script src="../vendor/hammer/hammer.min.js"></script>
+<style>
+  html, body { width: 100%; height: 100%; min-height: 100%; margin: 0; padding: 0; background: #000; overflow: hidden; overscroll-behavior: none; }
+  #game-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #game-canvas canvas { display: block; width: 100%; height: 100%; touch-action: none; -webkit-user-select: none; user-select: none; }
+
+  /* ── Touch Test (see player/main.js: setupTouchTestOverlay) ──────────
+     A no-devtools-required, on-screen way to confirm finger input is
+     reaching the game AND is showing up through the exact same `touch`
+     global a game script reads. Tap the button to toggle it — it stays
+     out of the way (and out of your actual game) until you do. */
+  #touch-test-btn {
+    position: fixed; right: 14px; bottom: 14px; z-index: 10000;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: rgba(20,20,30,0.75); border: 2px solid rgba(255,255,255,0.35);
+    color: #fff; font-size: 22px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    user-select: none; cursor: pointer;
+  }
+  #touch-test-btn.active { background: rgba(34,197,94,0.85); border-color: #22c55e; }
+  #touch-test-panel {
+    position: fixed; left: 8px; right: 8px; top: 8px; z-index: 9998;
+    display: none;
+    font: 12px/1.5 'Consolas','Menlo',monospace; color: #eee;
+    background: rgba(10,10,16,0.85); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 8px; padding: 10px 12px; max-height: 46vh; overflow-y: auto;
+    white-space: pre-wrap; pointer-events: none;
+  }
+  #touch-test-panel.open { display: block; }
+  #touch-test-panel b { color: #7dd3fc; }
+  #touch-test-panel .ok   { color: #4ade80; }
+  #touch-test-panel .bad  { color: #f87171; }
+  .touch-test-dot {
+    position: fixed; z-index: 9999; pointer-events: none;
+    width: 46px; height: 46px; margin-left: -23px; margin-top: -23px;
+    border-radius: 50%; border: 3px solid #4ade80;
+    background: rgba(74,222,128,0.25);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font: 11px/1 'Consolas','Menlo',monospace; text-shadow: 0 1px 2px #000;
+  }
+</style>
+<script>
+// Auto-recovery: if a JS module fails to parse (e.g. "Unexpected end of
+// input" from a stale/truncated cached file), automatically reload once
+// with cache-busting. If the retry also fails, show a visible fallback
+// instead of a black screen.
+(function () {
+  var p = new URLSearchParams(location.search);
+  var recovered = p.get("recovered") === "1";
+  function reload() {
+    p.set("recovered", "1");
+    p.set("t", Date.now().toString());
+    location.replace(location.pathname + "?" + p.toString());
+  }
+  function showFallback() {
+    var el = document.getElementById("game-canvas") || document.body;
+    el.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;background:#1a1a2e;color:#fff;font-family:system-ui;text-align:center;padding:20px;">' +
+      '<h2 style="margin:0 0 8px;font-size:18px;">Game failed to load</h2>' +
+      '<p style="margin:0 0 16px;color:#999;font-size:13px;max-width:340px;">A JavaScript module failed to parse — this is usually a stale cache issue. Click Reload on the home page to force-refresh all engine files.</p>' +
+      '<button onclick="location.replace(location.pathname)" style="padding:8px 24px;background:#6366f1;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:13px;">Reload</button>' +
+      "</div>";
+  }
+  function handleError(msg) {
+    if (
+      msg &&
+      (msg.indexOf("Unexpected end of input") !== -1 ||
+        msg.indexOf("SyntaxError") !== -1)
+    ) {
+      if (!recovered) reload();
+      else showFallback();
+    }
+  }
+  window.addEventListener("error", function (e) {
+    handleError((e.error && e.error.message) || e.message || "");
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    handleError((e.reason && (e.reason.message || e.reason.toString())) || "");
+  });
+  setTimeout(function () {
+    var c = document.getElementById("game-canvas");
+    if (c && c.children.length === 0) {
+      if (!recovered) reload();
+      else showFallback();
+    }
+  }, 10000);
+})();
+</script>
+</head>
+<body>
+  <div id="game-canvas"></div>
+
+  <!-- Touch Test — see player/main.js: setupTouchTestOverlay(). Tap the
+       button (bottom-right) to show/hide a live, no-devtools readout of
+       finger input, read straight from the same `touch` global a game
+       script would use — if it updates here, it works in script. -->
+  <button id="touch-test-btn" title="Touch Test">🖐</button>
+  <div id="touch-test-panel"></div>
+
+  <script type="module">
+    // Cache-bust: always fetch the latest main.js (never a stale cached
+    // copy) by appending a per-load timestamp. The no-cache meta tags
+    // above force the browser to revalidate every transitive ES module
+    // import too, so published updates are always visible without a
+    // manual hard-refresh.
+    import("./main.js?t=" + Date.now());
+  </script>
+</body>
+</html>

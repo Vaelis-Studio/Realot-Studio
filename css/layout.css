@@ -1,0 +1,57 @@
+.titlebar {
+    height: var(--titlebar-height);
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent), var(--bg-950);
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex; align-items: center;
+    position: relative; z-index: 30;
+    backdrop-filter: blur(8px);
+}
+
+.app-shell { display: flex; height: calc(100vh - var(--titlebar-height)); width: 100vw; }
+
+.rail {
+    width: var(--rail-width); flex-shrink: 0;
+    background: linear-gradient(180deg, var(--bg-900), var(--bg-950));
+    border-right: 1px solid var(--border-subtle);
+    display: flex; flex-direction: column; align-items: center;
+    padding: var(--sp-5) 0; gap: var(--sp-2);
+    position: relative; z-index: 4;
+}
+
+.main {
+    flex: 1; display: flex; flex-direction: column; min-width: 0;
+    background: var(--bg-950); position: relative; overflow: hidden;
+}
+
+.main::before {
+    content: ''; position: absolute; top: -15%; left: 15%;
+    width: 70vw; height: 60vh;
+    background: radial-gradient(circle, var(--accent-dim) 0%, transparent 60%);
+    filter: blur(80px); pointer-events: none; opacity: 0.6;
+}
+.main::after {
+    content: ''; position: absolute; bottom: -20%; right: 5%;
+    width: 50vw; height: 50vh;
+    background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 60%);
+    filter: blur(90px); pointer-events: none; opacity: 0.5;
+}
+
+.topbar {
+    height: 68px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 var(--sp-8);
+    border-bottom: 1px solid var(--border-subtle);
+    position: relative; z-index: 5;
+    background: linear-gradient(180deg, rgba(11,11,17,0.6), transparent);
+    backdrop-filter: blur(6px);
+}
+
+.view-area {
+    flex: 1; overflow-y: auto;
+    padding: var(--sp-8); position: relative; z-index: 1;
+}
+
+.view-inner {
+    max-width: 1080px; margin: 0 auto;
+    height: 100%; display: flex; flex-direction: column;
+}

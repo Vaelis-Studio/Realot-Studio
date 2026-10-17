@@ -1,0 +1,18 @@
+Windows Registry Editor Version 5.00
+
+; Gives .rs files the Realot icon and the type name "Realot Project".
+; 1. Copy realot-project.ico somewhere permanent (for example
+;    C:\Users\YOU\AppData\Local\Realot\realot-project.ico)
+; 2. Change the DefaultIcon path below to match (backslashes doubled).
+; 3. Double-click this file, then restart Explorer (or sign out and in).
+; Per-user only (HKCU); nothing system-wide is touched.
+
+[HKEY_CURRENT_USER\Software\Classes\.rs]
+@="Realot.Project"
+"Content Type"="application/x-realot-project"
+
+[HKEY_CURRENT_USER\Software\Classes\Realot.Project]
+@="Realot Project"
+
+[HKEY_CURRENT_USER\Software\Classes\Realot.Project\DefaultIcon]
+@="C:\\Users\\YOU\\AppData\\Local\\Realot\\realot-project.ico"

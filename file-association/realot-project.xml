@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-realot-project">
+    <comment>Realot Project</comment>
+    <sub-class-of type="application/zip"/>
+    <glob pattern="*.rs"/>
+    <icon name="application-x-realot-project"/>
+    <generic-icon name="application-x-realot-project"/>
+  </mime-type>
+</mime-info>

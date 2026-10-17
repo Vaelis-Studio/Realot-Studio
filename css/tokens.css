@@ -1,0 +1,57 @@
+:root {
+    /* Surfaces — layered near-black with a faint cool tint for depth */
+    --bg-950: #07070b;
+    --bg-900: #0b0b11;
+    --bg-800: #121219;
+    --bg-700: #1a1a23;
+    --bg-600: #23232e;
+    --bg-550: #2c2c39;
+    --border-subtle: rgba(255, 255, 255, 0.07);
+    --border-mid: rgba(255, 255, 255, 0.12);
+
+    /* Text */
+    --text-100: #f4f4f6;
+    --text-300: #c9c9d2;
+    --text-500: #8e8e9a;
+    --text-700: #595964;
+
+    /* Accent — refined warm gold */
+    --accent: #d4af6a;
+    --accent-hover: #e4c07e;
+    --accent-dim: rgba(212, 175, 106, 0.12);
+    --accent-line: rgba(212, 175, 106, 0.40);
+    --accent-soft: rgba(212, 175, 106, 0.08);
+
+    /* Semantic status */
+    --ok: #6fbf8b;
+    --warn: #d9a441;
+    --danger: #e06962;
+    --donate: #ec6f9b;
+    --donate-hover: #f486ac;
+    --donate-dim: rgba(236, 111, 155, 0.12);
+    --donate-line: rgba(236, 111, 155, 0.40);
+
+    /* Type */
+    --font-ui: 'Inter', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --fs-2xs: 0.6875rem;
+    --fs-xs: 0.75rem;
+    --fs-sm: 0.8125rem;
+    --fs-base: 0.875rem;
+    --fs-md: 1rem;
+    --fs-lg: 1.25rem;
+    --fs-xl: 1.75rem;
+    --fs-2xl: 2.25rem;
+
+    /* Spacing scale */
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+    --sp-5: 20px; --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px;
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+
+    --rail-width: 76px;
+    --titlebar-height: 44px;
+}

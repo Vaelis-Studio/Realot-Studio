@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>Realot — Play</title>
+<script src="../../vendor/pixi/pixi.min.js"></script>
+<script src="../../vendor/hammer/hammer.min.js"></script>
+<style>
+  html, body { width: 100%; height: 100%; margin: 0; padding: 0; background: #000; overflow: hidden; overscroll-behavior: none; }
+  /* The host fills the actual viewport; RenderSystem's Camera fit handles
+     the reference-resolution scaling inside this logical screen. */
+  #game-canvas { position: fixed; inset: 0; width: 100%; height: 100%; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #game-canvas canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+</style>
+</head>
+<body>
+  <div id="game-canvas"></div>
+  <script type="module" src="./play-popup.js"></script>
+</body>
+</html>

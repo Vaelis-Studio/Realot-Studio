@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<!-- Play window origin. Empty = run games on this same origin (default).
+     For safety when sharing projects, deploy this same folder on a second
+     hostname and put it here, e.g. content="https://play.example.com".
+     See SECURITY.md. -->
+<meta name="realot-play-origin" content="" />
+<meta http-equiv="Expires" content="0" />
+<title>Realot Editor</title>
+<!-- Same icon set as the Hub (index.html) so the browser tab icon
+     matches everywhere in the app. Google Search itself only reads ONE
+     favicon per hostname, taken from the homepage (see
+     developers.google.com/search/docs/appearance/favicon-in-search) —
+     since /editor lives on the same hostname as the Hub rather than a
+     separate subdomain, these links here only affect this page's own
+     browser tab, not what shows in Google Search results. -->
+<link rel="icon" href="../../favicon.svg?v=3" type="image/svg+xml" sizes="any" />
+<link rel="icon" href="../../favicon.ico?v=3" sizes="16x16 32x32 48x48" />
+<link rel="icon" href="../../icons/icon-32.png?v=3" type="image/png" sizes="32x32" />
+<link rel="icon" href="../../icons/icon-192.png?v=3" type="image/png" sizes="192x192" />
+<link rel="apple-touch-icon" href="../../icons/apple-touch-icon.png?v=3" />
+<script src="../vendor/pixi/pixi.min.js"></script>
+<script src="../vendor/jszip/jszip.min.js"></script>
+<script src="../vendor/hammer/hammer.min.js"></script>
+<link rel="stylesheet" href="../../css/fonts/fonts.css" />
+<!-- Shared tiered storage (localStorage + IndexedDB fallback) used by
+     both the launcher and this editor for per-project autosave — see
+     js/data/RealotPersistence.js and editor/state/ProjectStorage.js.
+     Loaded as a plain classic script (not an ES import) so it's
+     available as window.RealotPersistence before any editor module runs,
+     exactly like the other local engine vendor files above. -->
+<script src="../../js/data/RealotPersistence.js"></script>
+<!-- Bundled template project data (e.g. the "Platformer Kit" template's
+     real scenes/assets/scripts) — only used on a brand-new project's
+     very first open, to seed it instead of the blank starter scene.
+     See SceneViewport.js's loadInitialProject() and js/data/templates.js's
+     hasBundledData. Loaded the same way as RealotPersistence.js above: a
+     plain classic script populating a global (window.RealotTemplateData),
+     not the launcher's full templates.js/store.js (those are launcher-UI
+     only and this editor has no use for them). -->
+<script src="../../js/data/templates/platformer-starter.data.js"></script>
+<script src="../../js/data/templates/physics-sandbox.data.js"></script>
+<script src="../../js/data/templates/flappy-bird-starter.data.js"></script>
+<script src="../../js/data/templates/topdown.data.js"></script>
+<script src="../../js/data/templates/sky-jumper.data.js"></script>
+<link rel="stylesheet" href="./styles/editor.css" />
+<script>
+// Early error buffer: collect errors BEFORE main.js loads so they can
+// be flushed into the editor's ConsoleCapture once it's ready.
+window.__realotEarlyErrors = [];
+window.__realotEarlyLogs = function(level, msg) {
+  window.__realotEarlyErrors.push({ level: level, msg: msg, time: Date.now() });
+};
+
+// Auto-recovery: if a JS module fails to load (e.g. "Failed to fetch
+// dynamically imported module" from a missing/stale file, or
+// "Unexpected end of input" from a truncated cached file), automatically
+// reload once with cache-busting. If the retry also fails, show a small
+// error banner — NOT a full-screen overlay — with a Reload button.
+//
+// UNSAVED-CHANGES GUARD: this reload is entirely separate from (and
+// runs BEFORE) main.js's beforeunload listener even exists — this
+// script executes immediately on page load, well before main.js has
+// been imported and had a chance to register anything. That means a
+// silent location.replace() call here bypasses the "you have unsaved
+// changes" prompt completely: no dialog ever shows, so there's nothing
+// to click Cancel on, and the reload just happens — which looks
+// exactly like "the engine restarted even though I clicked Cancel"
+// even though no such dialog was ever actually shown for this
+// particular reload. This is most likely to fire under the exact same
+// conditions that cause other performance-pressure symptoms elsewhere
+// in the editor (low memory, GC pauses, a slow/failed module fetch) —
+// i.e. precisely when the person is most likely to have unsaved work
+// sitting in the live scene. window.__realotDirtyCheck (installed
+// below, read by main.js) lets this script check the SAME
+// dirtyState.isDirty flag main.js's own beforeunload guard uses,
+// without needing to import any editor module (this script runs too
+// early for ES imports). If it's ever unavailable (dirtyState hasn't
+// loaded yet, or this reload fires before ANY project data exists),
+// this defaults to allowing the reload — a module-load failure this
+// early in boot means there's realistically no in-memory project data
+// to lose yet.
+window.__realotDirtyCheck = null; // set by main.js once EditorState.js has loaded — see EditorState.js's markDirty doc comment
+(function () {
+  var p = new URLSearchParams(location.search);
+  var recovered = p.get("recovered") === "1";
+  function hasUnsavedChanges() {
+    try {
+      return typeof window.__realotDirtyCheck === "function" && window.__realotDirtyCheck() === true;
+    } catch (_) {
+      return false;
+    }
+  }
+  function reload() {
+    if (hasUnsavedChanges()) {
+      // Don't silently discard unsaved work. Also don't fall through to
+      // showFallback() here — that function replaces #app's ENTIRE
+      // contents, which would destroy the currently-running editor
+      // (and the unsaved scene state sitting in it) just as badly as
+      // the reload this is meant to prevent. The whole reason this
+      // branch matters is that the editor IS still alive and usable in
+      // this case (a module fetch failed somewhere, but the
+      // already-running instance still has the person's work in
+      // memory) — so show a small, non-destructive toast instead and
+      // leave the running editor completely untouched.
+      showUnsavedRecoveryToast();
+      return;
+    }
+    p.set("recovered", "1");
+    p.set("t", Date.now().toString());
+    location.replace(location.pathname + "?" + p.toString());
+  }
+  function showUnsavedRecoveryToast() {
+    if (document.getElementById("realot-recovery-toast")) return; // already showing
+    var el = document.createElement("div");
+    el.id = "realot-recovery-toast";
+    el.style.cssText =
+      "position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:999999;" +
+      "display:flex;align-items:center;gap:12px;max-width:min(90vw,460px);padding:10px 16px;" +
+      "background:#3a2a12;border:1px solid #b8791a;color:#f0c674;font-family:system-ui;" +
+      "font-size:12px;line-height:1.4;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.5);";
+    el.innerHTML =
+      '<span>A background file failed to load, but your unsaved changes are safe \u2014 save your work, then reload when ready.</span>' +
+      '<button id="realot-recovery-toast-save" style="flex-shrink:0;padding:6px 12px;background:#6366f1;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:12px;">Save now</button>' +
+      '<button id="realot-recovery-toast-dismiss" style="flex-shrink:0;background:none;border:none;color:#8e8e9a;cursor:pointer;font-size:16px;line-height:1;padding:0 2px;">\u00d7</button>';
+    document.body.appendChild(el);
+    var saveBtn = document.getElementById("realot-recovery-toast-save");
+    if (saveBtn) {
+      saveBtn.addEventListener("click", function () {
+        // window.__realotSaveNow is wired by main.js's boot() the same
+        // way __realotDirtyCheck is (see that comment above) — calls
+        // the exact same Toolbar.js "Save Now" path a manual click
+        // would, so the toast's button behaves identically to using
+        // the real button.
+        try {
+          if (typeof window.__realotSaveNow === "function") window.__realotSaveNow();
+        } catch (_) {}
+      });
+    }
+    var dismissBtn = document.getElementById("realot-recovery-toast-dismiss");
+    if (dismissBtn) {
+      dismissBtn.addEventListener("click", function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      });
+    }
+  }
+  function showFallback() {
+    // Previously replaced #app's entire contents with a blocking "Editor
+    // failed to load" + Reload-button screen. Removed per product
+    // decision: in practice this was firing on loads that were simply
+    // slow (cold CDN cache) rather than genuinely broken, and the editor
+    // would go on to render normally a few seconds later underneath a
+    // screen the person had no reason to see. The one silent, automatic
+    // cache-busting reload in reload() above still runs on a real
+    // module-load failure — this function just no longer takes over the
+    // screen on top of it. Errors are still visible in the editor's own
+    // console panel via window.__realotEarlyLogs/ConsoleCapture.
+    console.error("Realot editor: a module failed to load after one automatic reload attempt. Leaving the current screen up rather than showing a blocking error screen.");
+  }
+  function handleError(msg) {
+    if (!msg) return;
+    // These errors mean a module file couldn't be fetched or parsed —
+    // try one cache-busting reload. On the second failure, show fallback.
+    var isModuleError =
+      msg.indexOf("Failed to fetch dynamically imported module") !== -1 ||
+      msg.indexOf("error resolving module") !== -1 ||
+      msg.indexOf("Unexpected end of input") !== -1 ||
+      msg.indexOf("SyntaxError") !== -1;
+    if (isModuleError) {
+      if (!recovered) reload();
+      else showFallback();
+    }
+  }
+  window.addEventListener("error", function (e) {
+    handleError((e.error && e.error.message) || e.message || "");
+  });
+  window.addEventListener("unhandledrejection", function (e) {
+    handleError((e.reason && (e.reason.message || e.reason.toString())) || "");
+  });
+  // Safety net: if #app is still empty after 10s, a module likely failed
+  // silently — try one cache-busting reload.
+  setTimeout(function () {
+    var app = document.getElementById("app");
+    if (app && app.children.length === 0) {
+      if (!recovered) reload();
+      else showFallback();
+    }
+  }, 10000);
+})();
+</script>
+<link rel="preload" as="image" href="icons/realot-boot.jpg">
+<style>
+  html, body { background: #000; }
+  /* First-load screen: pure black, the Realot Studio logo image fills the
+     whole screen, and a thin progress bar sits at the bottom. No glow, no
+     pulsing, no text. Inline CSS so it paints before any script loads. */
+  #realot-boot-screen {
+    position: fixed; inset: 0; z-index: 999999;
+    background: #000;
+    overflow: hidden;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+  }
+  #realot-boot-screen.zbs-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .zbs-img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; object-position: center;
+    display: block; user-select: none; -webkit-user-drag: none;
+  }
+  /* Tall/narrow screens (phones in portrait): show the whole logo instead of
+     cropping its sides, and fade the picture's edges into the black. */
+  @media (max-aspect-ratio: 1/1) {
+    .zbs-img {
+      object-fit: contain;
+      -webkit-mask-image: radial-gradient(ellipse at center, #000 55%, transparent 100%);
+              mask-image: radial-gradient(ellipse at center, #000 55%, transparent 100%);
+    }
+  }
+  .zbs-bar {
+    position: absolute; left: 50%; bottom: 6vh; transform: translateX(-50%);
+    width: min(420px, 60vw); height: 3px;
+    background: #1a1a1a; overflow: hidden;
+  }
+  .zbs-bar-fill {
+    height: 100%; width: 0%;
+    background: #d4d4d4;
+    transition: width 0.35s ease;
+  }
+</style>
+</head>
+<body>
+  <div id="realot-boot-screen">
+    <img class="zbs-img" src="icons/realot-boot.jpg" alt="Realot Studio" draggable="false" />
+    <div class="zbs-bar"><div class="zbs-bar-fill" id="zbs-fill"></div></div>
+  </div>
+  <div id="app"></div>
+  <script>
+  // Progress bar: no real load events are exposed (PIXI/JSZip/Hammer/Rapier),
+  // so it eases toward 90% and slows down; reveal() below snaps it to 100%.
+  (function () {
+    // Progress bar has no real granular signal to hook into (see
+    // note above about PIXI/JSZip/Hammer/Rapier not exposing load
+    // events), so it eases toward 90% and asymptotically slows,
+    // then reveal() below snaps it to 100% the instant #app
+    // actually has content — reads as genuine progress either way,
+    // fast or slow.
+    var fill = document.getElementById("zbs-fill");
+    var current = 0;
+    window.__realotBootProgress = setInterval(function () {
+      var remaining = 90 - current;
+      current += Math.max(remaining * 0.06, 0.15);
+      if (current > 90) current = 90;
+      if (fill) fill.style.width = current + "%";
+    }, 120);
+  })();
+  </script>
+  <script>
+  // Hide the boot screen the moment the editor's first real render()
+  // lands content in #app. A MutationObserver (rather than a fixed
+  // timeout) means this works regardless of how long that actually
+  // takes — instant on a warm cache, ~10s on a cold one, adapting
+  // either way instead of guessing a duration.
+  (function () {
+    var app = document.getElementById("app");
+    var boot = document.getElementById("realot-boot-screen");
+    if (!app || !boot) return;
+    function reveal() {
+      clearInterval(window.__realotBootProgress);
+      var fill = document.getElementById("zbs-fill");
+      if (fill) fill.style.width = "100%";
+      boot.classList.add("zbs-hidden");
+      setTimeout(function () {
+        if (boot && boot.parentNode) boot.parentNode.removeChild(boot);
+      }, 550);
+      observer.disconnect();
+    }
+    if (app.children.length > 0) { reveal(); return; }
+    var observer = new MutationObserver(function () {
+      if (app.children.length > 0) reveal();
+    });
+    observer.observe(app, { childList: true });
+    // Safety net: never leave the boot screen up forever even if
+    // something upstream goes wrong in a way that still (eventually)
+    // shows SOME UI without ever mutating #app's direct children —
+    // matches the existing 10s "auto-recovery" timeout above, plus a
+    // small margin, so this never fires before that has a chance to.
+    setTimeout(reveal, 16000);
+  })();
+  </script>
+  <script>
+  // Error handler: route all errors to console.error (so the editor's
+  // ConsoleCapture picks them up and shows them in the engine console
+  // panel) instead of showing a full-screen overlay. A small toast at
+  // the bottom provides a visible signal without blocking the editor.
+  window.addEventListener("error", function(e) {
+    var msg = (e.error && e.error.message) || e.message || "";
+    // Suppress the known PIXI ResizeObserver race during innerHTML
+    // rebuilds — the retry in main.js handles it.
+    if (msg.indexOf("no longer a child") !== -1 || msg.indexOf("node to be removed") !== -1) {
+      e.preventDefault();
+      return;
+    }
+    var text = "ERROR: " + ((e.error && e.error.stack) || e.message || JSON.stringify(e));
+    console.error(text);
+    window.__realotEarlyLogs("error", text);
+    // Show a small non-blocking toast
+
+  });
+  window.addEventListener("unhandledrejection", function(e) {
+    var msg = (e.reason && (e.reason.message || e.reason.toString())) || "";
+    if (msg.indexOf("no longer a child") !== -1 || msg.indexOf("node to be removed") !== -1) {
+      e.preventDefault();
+      return;
+    }
+    var text = "REJECTION: " + ((e.reason && (e.reason.stack || e.reason.message || e.reason.toString())) || JSON.stringify(e.reason));
+    console.error(text);
+    window.__realotEarlyLogs("error", text);
+
+  });
+  // Check if PIXI loaded — log to console, don't block the screen
+  setTimeout(function() {
+    if (typeof PIXI === "undefined") {
+       var msg = "PIXI is undefined - local vendor script failed to load";
+      console.error(msg);
+      window.__realotEarlyLogs("error", msg);
+
+    }
+  }, 3000);
+  </script>
+  <script type="module">
+    // Cache-bust: always fetch the latest main.js (never a stale cached
+    // copy) by appending a per-load timestamp. The no-cache meta tags
+    // above force the browser to revalidate every transitive ES module
+    // import too, so published updates are always visible without a
+    // manual hard-refresh.
+    import("./main.js?t=" + Date.now()).catch(function(err) {
+      // If main.js itself fails to load, log it — the auto-recovery
+      // handler above will trigger a cache-busting reload.
+      console.error("Failed to load editor main.js:", err);
+      window.__realotEarlyLogs("error", "Failed to load editor main.js: " + (err && err.message ? err.message : err));
+    });
+  </script>
+</body>
+</html>
