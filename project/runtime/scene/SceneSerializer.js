@@ -34,7 +34,7 @@ import { NavWorld2D, NAV_WORLD_2D } from "../components/NavWorld2D.js";
 import { NavAgent2D, NAV_AGENT_2D } from "../components/NavAgent2D.js";
 import { Script, SCRIPT } from "../components/Script.js";
 
-const COMPONENT_REGISTRY = {
+export const COMPONENT_REGISTRY = {
   [TRANSFORM]: Transform,
   [CAMERA]: Camera,
   [SPRITE_RENDERER]: SpriteRenderer,

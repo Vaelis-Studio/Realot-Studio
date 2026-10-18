@@ -12,6 +12,7 @@
  * centered in the current scene (see EditorEvents.js "create-light").
  */
 
+import { getClaudeBridgeStatus } from "../bridge/ClaudeBridge.js";
 import { icon } from "../icons/IconLibrary.js";
 import { editorState, dirtyState } from "../state/EditorState.js";
 import { LightType } from "../../runtime/components/Light.js";
@@ -155,6 +156,10 @@ export function renderToolbar() {
     "</button>" +
     "</div></div>" +
     '<div class="toolbar-right">' +
+    // Claude bridge (MCP): opens the connection panel; dot = connection state.
+    '<button class="pill-btn" data-action="open-claude-bridge" title="Claude bridge \u2014 let Claude see and edit this project" style="display:inline-flex;align-items:center;gap:5px;margin-right:6px;">' +
+    '<span data-claude-dot style="width:7px;height:7px;border-radius:50%;display:inline-block;background:' +
+    ({ connected: "#4caf7d", connecting: "#f5a623", error: "#e5534b" }[getClaudeBridgeStatus().state] || "#777") + ';"></span>Claude</button>' +
     // Always-visible manual save. Forces an immediate save to this project's
     // autosave slot (same path as the 1-minute autosave). In a standalone
     // editor with no autosave slot it falls back to Save Project (download).

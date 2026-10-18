@@ -44,11 +44,11 @@ import { renderStatusBar, startLiveStats } from "./panels/StatusBar.js";
 // Keep every import of this file across the whole editor byte-for-
 // byte identical (no query string on any of them) so they always
 // resolve to the SAME module instance.
-import { mountOrUpdateSceneViewport, getGame, detachViewportCanvas, isInitialProjectLoadDone, switchScene, syncAfterExternalSceneChange } from "./viewport/SceneViewport.js";
-import { installRealotMcpBridge } from "./mcp/EditorBridge.js";
+import { mountOrUpdateSceneViewport, getGame, detachViewportCanvas, isInitialProjectLoadDone } from "./viewport/SceneViewport.js";
 import { openPlayWindow, closePlayWindow, isPlayWindowOpen, getPlayWindow, isTrustedPlayMessage, sendPlayPayload } from "./viewport/PlayWindow.js";
 import { attachEditorEvents, loadProjectFromFile } from "./state/EditorEvents.js";
 import { adoptFileHandle } from "./state/FileSync.js";
+import { initClaudeBridge } from "./bridge/ClaudeBridge.js";
 import { installAndroidBuildLeaveGuard } from "./state/AndroidBuildSession.js";
 import { editorState, pushLog, dirtyState } from "./state/EditorState.js";
 import { getEngineSettings } from "./state/EngineSettings.js";
@@ -378,10 +378,6 @@ function requestEditorFullscreenWhenAllowed() {
 function boot() {
   editorState.renderFn = render;
   attachEditorEvents(render, onTogglePlay);
-  // The MCP bridge is opt-in: it does not connect to anything until the user
-  // pairs the editor with their local Realot MCP companion from the AI Bridge
-  // panel. It reuses the same game/editor APIs as the normal UI.
-  installRealotMcpBridge({ getGame, editorState, render, onTogglePlay, switchScene, syncAfterExternalSceneChange });
   // Start every editor session with the Inspector notes collapsed. The
   // small info button is the explicit opt-in for showing guidance; this
   // prevents an older persisted "on" value from cluttering the Inspector
@@ -437,6 +433,7 @@ function boot() {
     }
   });
   startLiveStats(editorState);
+  initClaudeBridge();
   // Double-clicking a .realot file in the OS (when Realot is installed as an app)
   // launches the editor with that file. See "file_handlers" in
   // manifest.webmanifest. Unsupported browsers simply don't have launchQueue.

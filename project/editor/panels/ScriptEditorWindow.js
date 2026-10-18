@@ -695,30 +695,6 @@ function _mountEditor(container) {
   });
 }
 
-/**
- * Applies a complete script source from the local AI/MCP bridge without leaving
- * an already-open Monaco model stale. Script edits still use ScriptStorage as
- * their source of truth and are copied to every matching live Script component,
- * matching the editor's ordinary source-sync path.
- */
-export function applyExternalScriptSource(scriptName, source) {
-  if (typeof scriptName !== "string" || !scriptName.trim()) throw new Error("A script name is required.");
-  if (typeof source !== "string") throw new Error("Script source must be text.");
-  saveScript(scriptName, source);
-  _syncSourceToEntities(scriptName, source);
-  const model = _models[scriptName];
-  if (model && model.getValue() !== source) {
-    // If this tab is active, Monaco's normal model-content listener may also
-    // schedule diagnostics/autosave. Storage and entity copies were synced above
-    // already, so either active/inactive tabs converge on the same contents.
-    model.setValue(source);
-  }
-  _refreshSidebarDom();
-  _refreshTabsDom();
-  if (editorState.renderFn) editorState.renderFn();
-  return true;
-}
-
 export function openScriptEditor(scriptName, source, contextEntityId) {
   // `source` is only used to CREATE a script that doesn't exist yet. It must
   // never overwrite what's stored: callers sometimes pass the Script

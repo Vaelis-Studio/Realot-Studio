@@ -1,0 +1,16 @@
+{
+  "name": "realot-bridge-relay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "local": "node relay-node.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "optionalDependencies": {
+    "ws": "^8.18.0"
+  }
+}

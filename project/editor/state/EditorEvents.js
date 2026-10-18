@@ -9,6 +9,7 @@
 
 import { editorState, pushLog, markDirty, markClean, markFileClean } from "./EditorState.js";
 import { adoptFileHandle, isFileSyncActive, writeProjectToFile } from "./FileSync.js";
+import { openClaudeBridgePanel } from "../bridge/ClaudeBridge.js";
 
 async function showSaveFilePickerForProject(suggestedName) {
   try {
@@ -727,6 +728,9 @@ let _lastSceneClick = { id: null, time: 0 };
         render();
         break;
       }
+      case "open-claude-bridge":
+        openClaudeBridgePanel();
+        break;
       case "anim-preview-zoom": {
         const a = editorState.anim;
         const dir = t.dataset.dir;

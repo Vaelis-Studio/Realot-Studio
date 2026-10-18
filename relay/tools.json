@@ -1,0 +1,143 @@
+[
+  {
+    "name": "get_editor_state",
+    "description": "Overview of the open Realot editor: project name, whether the game is playing, selected entity ids, entity count, available component types.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  },
+  {
+    "name": "list_entities",
+    "description": "List every entity in the current scene (id, name, tag, active, component types, x/y position).",
+    "inputSchema": { "type": "object", "properties": { "limit": { "type": "integer", "description": "Max entities to return (default 200)." } }, "additionalProperties": false }
+  },
+  {
+    "name": "get_entity",
+    "description": "Full data of one entity: all components with every property.",
+    "inputSchema": { "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"], "additionalProperties": false }
+  },
+  {
+    "name": "create_entity",
+    "description": "Create an entity. 'components' maps a component type (e.g. SpriteRenderer, Collider2D, Rigidbody2D, Script) to its properties. A Transform is always added. Undoable with undo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "tag": { "type": "string" },
+        "components": { "type": "object", "description": "{ \"Collider2D\": { \"shape\": \"Box\", \"width\": 50, \"height\": 50 }, ... }" }
+      },
+      "required": ["name"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_component",
+    "description": "Change properties of an existing component on an entity (only properties the component already has). Use get_entity first to see them.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "id": { "type": "string" }, "type": { "type": "string", "description": "Component type, e.g. Transform" }, "props": { "type": "object" } },
+      "required": ["id", "type", "props"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_component",
+    "description": "Add a component to an entity.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "id": { "type": "string" }, "type": { "type": "string" }, "props": { "type": "object" } },
+      "required": ["id", "type"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "remove_component",
+    "description": "Remove a component (not Transform) from an entity.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "id": { "type": "string" }, "type": { "type": "string" } },
+      "required": ["id", "type"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_entities",
+    "description": "Delete entities by id (same as pressing Delete in the editor). Undoable.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "ids": { "type": "array", "items": { "type": "string" } } },
+      "required": ["ids"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "select_entities",
+    "description": "Select entities in the editor so the user sees them in the Inspector.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "ids": { "type": "array", "items": { "type": "string" } } },
+      "required": ["ids"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_scripts",
+    "description": "Names of all scripts in the project.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  },
+  {
+    "name": "get_script",
+    "description": "Source code of a script.",
+    "inputSchema": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"], "additionalProperties": false }
+  },
+  {
+    "name": "write_script",
+    "description": "Create or overwrite a script's source code. Entities already using this script get the new code too. Reports syntax errors.",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "source": { "type": "string" } },
+      "required": ["name", "source"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "attach_script",
+    "description": "Attach an existing script to an entity (adds a Script component).",
+    "inputSchema": {
+      "type": "object",
+      "properties": { "id": { "type": "string" }, "scriptName": { "type": "string" } },
+      "required": ["id", "scriptName"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "set_playing",
+    "description": "Start or stop play mode (opens the game in the play window).",
+    "inputSchema": { "type": "object", "properties": { "playing": { "type": "boolean" } }, "required": ["playing"], "additionalProperties": false }
+  },
+  {
+    "name": "get_console",
+    "description": "Recent editor/play console lines (logs, warnings, script errors).",
+    "inputSchema": { "type": "object", "properties": { "limit": { "type": "integer", "description": "Default 40." } }, "additionalProperties": false }
+  },
+  {
+    "name": "screenshot",
+    "description": "Image of the scene viewport as the user sees it.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  },
+  {
+    "name": "undo",
+    "description": "Undo the last editor change.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  },
+  {
+    "name": "redo",
+    "description": "Redo the last undone change.",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  },
+  {
+    "name": "save_project",
+    "description": "Save now (browser autosave slot, and the .realot file if one is being kept up to date).",
+    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+  }
+]

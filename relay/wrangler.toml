@@ -1,0 +1,17 @@
+name = "realot-bridge"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+# Optional lock: only editors loaded from these sites may connect, e.g.
+# ALLOWED_ORIGINS = "https://yourname.github.io"
+# Leave empty to allow any site.
+ALLOWED_ORIGINS = ""
+
+[[durable_objects.bindings]]
+name = "ROOM"
+class_name = "BridgeRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["BridgeRoom"]
