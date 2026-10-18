@@ -756,6 +756,17 @@ let _lastSceneClick = { id: null, time: 0 };
         render();
         break;
       }
+      case "anim-frame-thumb": {
+        // Click a frame thumbnail to jump the preview straight to it
+        // (drag still reorders — a drag never fires a click).
+        const idx = parseInt(t.dataset.frameIndex, 10);
+        if (!Number.isNaN(idx)) {
+          editorState.anim.previewFrameIndex = idx;
+          editorState.anim.previewPlaying = false;
+          render();
+        }
+        break;
+      }
       case "anim-preview-step": {
         const entity = editorState.world && editorState.world.getEntity(editorState.selectedId);
         const anim = entity && entity.getComponent(SPRITE_ANIMATION);
@@ -803,6 +814,7 @@ let _lastSceneClick = { id: null, time: 0 };
           const collider = entity.getComponent(COLLIDER_2D);
           const seed = collider ? new Collider2D({ ...collider }) : new Collider2D(_sizedColliderDefaults(entity));
           clip.colliderOverride = { ...seed };
+          editorState.anim.showColliderInPreview = true;
         } else {
           clip.colliderOverride = null;
         }
@@ -2365,10 +2377,76 @@ case "select-scene-file": {
     },
     { passive: false }
   );
+  // ---- Drag collider handles / body in the Animation preview (override only)
+  let _animHandleDrag = null;
+  document.addEventListener(
+    "pointerdown",
+    (e) => {
+      const h = e.target.closest && e.target.closest("[data-anim-handle]");
+      if (!h || e.button !== 0) return;
+      const a = editorState.anim;
+      const entity = editorState.world && editorState.world.getEntity(editorState.selectedId);
+      const comp = entity && entity.getComponent(SPRITE_ANIMATION);
+      const clip = comp && comp.clips.find((c) => c.id === a.editingClipId);
+      const ov = clip && clip.colliderOverride;
+      const stage = document.querySelector(".animpanel-preview [data-anim-stage]");
+      if (!ov || !a._geom || !stage) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = stage.getBoundingClientRect();
+      a._dragBounds = { minX: a._geom.minX, minY: a._geom.minY, maxX: a._geom.maxX, maxY: a._geom.maxY };
+      _animHandleDrag = {
+        id: h.getAttribute("data-anim-handle"), ov, scale: a._geom.scale,
+        left: rect.left, top: rect.top, minX: a._geom.minX, minY: a._geom.minY,
+        sx: e.clientX, sy: e.clientY, ox0: ov.offsetX || 0, oy0: ov.offsetY || 0,
+        recorded: false,
+      };
+    },
+    true
+  );
+  document.addEventListener("pointermove", (e) => {
+    const d = _animHandleDrag;
+    if (!d) return;
+    if (!d.recorded) {
+      // One undo step per drag, recorded on the first real movement (a plain
+      // click without moving leaves no no-op step). Taken BEFORE the change.
+      if (Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 2) return;
+      snapshotNow("anim");
+      d.recorded = true;
+    }
+    const ov = d.ov;
+    const lx = d.minX + (e.clientX - d.left) / d.scale;
+    const ly = d.minY + (e.clientY - d.top) / d.scale;
+    const r2 = (v) => Math.round(v * 100) / 100;
+    const ox = ov.offsetX || 0;
+    const oy = ov.offsetY || 0;
+    const tri = /^tri(\d)$/.exec(d.id);
+    if (d.id === "move") {
+      ov.offsetX = r2(d.ox0 + (e.clientX - d.sx) / d.scale);
+      ov.offsetY = r2(d.oy0 + (e.clientY - d.sy) / d.scale);
+    } else if (tri && ov.trianglePoints) {
+      ov.trianglePoints[parseInt(tri[1], 10)] = { x: r2(lx - ox), y: r2(ly - oy) };
+    } else if (d.id === "w+" || d.id === "w-") ov.width = Math.max(1, r2(2 * Math.abs(lx - ox)));
+    else if (d.id === "h+" || d.id === "h-") ov.height = Math.max(1, r2(2 * Math.abs(ly - oy)));
+    else if (d.id === "r") ov.radius = Math.max(0.5, r2(Math.abs(lx - ox)));
+    else if (d.id === "cr") ov.capsuleRadius = Math.max(0.5, r2(Math.abs(lx - ox)));
+    else if (d.id === "hh") ov.capsuleHalfHeight = Math.max(0, r2(Math.abs(ly - oy) - (ov.capsuleRadius || 0)));
+    render();
+  });
+  const _endAnimHandle = () => {
+    if (!_animHandleDrag) return;
+    _animHandleDrag = null;
+    editorState.anim._dragBounds = null;
+    markDirty();
+    render();
+  };
+  document.addEventListener("pointerup", _endAnimHandle);
+  document.addEventListener("pointercancel", _endAnimHandle);
+
   let _animPanDrag = null;
   document.addEventListener("pointerdown", (e) => {
     const box = e.target.closest && e.target.closest(".animpanel-preview");
-    if (!box || e.target.closest(".animpanel-zoombar")) return;
+    if (!box || e.target.closest(".animpanel-zoombar") || e.target.closest("[data-anim-handle]")) return;
     if (e.button !== 0 && e.button !== 1) return;
     const a = editorState.anim;
     _animPanDrag = { x: e.clientX, y: e.clientY, px: a.previewPanX || 0, py: a.previewPanY || 0 };
@@ -3391,6 +3469,13 @@ function applyFieldChange(field, inputEl) {
       if (!clip || !clip.colliderOverride) return;
       const value =
         inputEl.type === "checkbox" ? inputEl.checked : inputEl.type === "number" ? parseFloat(inputEl.value) || 0 : inputEl.value;
+      const tpm = prop.match(/^trianglePoints\.(\d)\.(x|y)$/);
+      if (tpm) {
+        const pts = clip.colliderOverride.trianglePoints;
+        const i = parseInt(tpm[1], 10);
+        if (pts && pts[i]) pts[i] = { ...pts[i], [tpm[2]]: parseFloat(inputEl.value) || 0 };
+        return;
+      }
       clip.colliderOverride[prop] = value;
 
       // Switching SHAPE via the dropdown only ever set this one prop —

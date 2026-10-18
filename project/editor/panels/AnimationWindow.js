@@ -266,9 +266,30 @@ function _renderZoomBar() {
   );
 }
 
+// Frames don't always carry width/height (template/imported clips often only
+// have spriteKey), and falling back to 1x1 made the image vanish as soon as
+// a collider was shown. Read the real pixel size from the image itself,
+// cache it, and re-render once it has loaded.
+const _thumbDimsCache = new Map();
+function _thumbDims(thumb) {
+  const hit = _thumbDimsCache.get(thumb);
+  if (hit) return hit;
+  if (!_thumbDimsCache.has("pending:" + thumb)) {
+    _thumbDimsCache.set("pending:" + thumb, true);
+    const img = new Image();
+    img.onload = () => {
+      _thumbDimsCache.set(thumb, { w: img.naturalWidth || 64, h: img.naturalHeight || 64 });
+      if (editorState.renderFn) editorState.renderFn();
+    };
+    img.src = thumb;
+  }
+  return { w: 64, h: 64 }; // placeholder for the one frame before it loads
+}
+
 function _renderPreviewStage(entity, clip, frame, thumb) {
-  const fw = frame.width || 1;
-  const fh = frame.height || 1;
+  const dims = frame.width && frame.height ? { w: frame.width, h: frame.height } : _thumbDims(thumb);
+  const fw = dims.w;
+  const fh = dims.h;
 
   const baseCollider = entity.getComponent(COLLIDER_2D);
   const showCollider = editorState.anim.showColliderInPreview;
@@ -289,6 +310,11 @@ function _renderPreviewStage(entity, clip, frame, thumb) {
     maxY = Math.max(maxY, colliderBounds.maxY);
   }
 
+  // While a handle is being dragged, keep the stage's coordinate frame frozen
+  // so the handle under the cursor doesn't slide as the shape grows.
+  const frozen = editorState.anim._dragBounds;
+  if (frozen) { minX = frozen.minX; maxX = frozen.maxX; minY = frozen.minY; maxY = frozen.maxY; }
+
   const boundsW = Math.max(1, maxX - minX);
   const boundsH = Math.max(1, maxY - minY);
 
@@ -304,6 +330,7 @@ function _renderPreviewStage(entity, clip, frame, thumb) {
   // the shared image+collider alignment.
   const zoom = editorState.anim.previewZoom || 1;
   const scale = fitScale * zoom;
+  editorState.anim._geom = { minX, minY, maxX, maxY, scale };
   const panX = editorState.anim.previewPanX || 0;
   const panY = editorState.anim.previewPanY || 0;
 
@@ -320,7 +347,7 @@ function _renderPreviewStage(entity, clip, frame, thumb) {
 
   let overlayHtml = "";
   if (source && colliderBounds) {
-    overlayHtml = _renderColliderOverlay(source, colliderBounds, minX, minY, scale);
+    overlayHtml = _renderColliderOverlay(source, colliderBounds, minX, minY, scale, !!clip.colliderOverride);
   }
 
   return (
@@ -368,43 +395,72 @@ function _colliderLocalBounds(source) {
 }
 
 /**
- * Emits the collider outline as an absolutely-positioned pixel rect
- * using the SAME (minX, minY, scale) the image was placed with, so it
- * lines up exactly regardless of zoom level.
+ * Collider outline for the preview. When `editable` (the clip has its own
+ * Collider Override) it also emits drag handles — same idea as the Scene
+ * view gizmo: drag a triangle corner, drag the body to move the offset,
+ * drag edge/side handles to resize. All handle geometry uses the SAME
+ * (originX, originY, scale) as the image, so it stays aligned at any zoom.
  */
-function _renderColliderOverlay(source, bounds, originX, originY, scale) {
+function _renderColliderOverlay(source, bounds, originX, originY, scale, editable) {
   const color = source.isTrigger ? "#2dd4ff" : "#ff2d55";
-  const left = (bounds.minX - originX) * scale;
-  const top = (bounds.minY - originY) * scale;
-  const w = Math.max(1, (bounds.maxX - bounds.minX) * scale);
-  const h = Math.max(1, (bounds.maxY - bounds.minY) * scale);
+  const ox = source.offsetX || 0;
+  const oy = source.offsetY || 0;
+  const px = (lx) => (lx - originX) * scale;
+  const py = (ly) => (ly - originY) * scale;
+  const hdl = (id, lx, ly, cursor) =>
+    '<div data-anim-handle="' + id + '" style="position:absolute;left:' + (px(lx) - 5) + "px;top:" + (py(ly) - 5) +
+    "px;width:10px;height:10px;box-sizing:border-box;background:#fff;border:1.5px solid " + color +
+    ";border-radius:2px;cursor:" + cursor + ';pointer-events:auto;z-index:3;touch-action:none;"></div>';
 
   if (source.shape === ColliderShape.TRIANGLE) {
-    // Draw the real triangle (not its bounding box) with draggable-looking
-    // corner dots so it can be checked/adjusted precisely when zoomed in.
-    const ox = source.offsetX || 0;
-    const oy = source.offsetY || 0;
-    const pts = (source.trianglePoints || []).map((q) => ({
-      x: (q.x + ox - originX) * scale,
-      y: (q.y + oy - originY) * scale,
-    }));
+    const pts = (source.trianglePoints || []).map((q) => ({ x: px(q.x + ox), y: py(q.y + oy) }));
     const poly = pts.map((q) => q.x + "," + q.y).join(" ");
     return (
-      '<svg class="animpanel-collider-overlay" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible;" width="1" height="1">' +
-      '<polygon points="' + poly + '" fill="' + color + '22" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round"/>' +
-      pts.map((q) => '<circle cx="' + q.x + '" cy="' + q.y + '" r="3" fill="#fff" stroke="' + color + '" stroke-width="1.5"/>').join("") +
+      '<svg class="animpanel-collider-overlay" style="position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:3;" width="1" height="1">' +
+      '<polygon points="' + poly + '" fill="' + color + '22" stroke="' + color + '" stroke-width="1.5" stroke-linejoin="round"' +
+      (editable ? ' data-anim-handle="move" style="pointer-events:all;cursor:move;touch-action:none;"' : "") + "/>" +
+      pts
+        .map((q, i) =>
+          editable
+            ? '<circle data-anim-handle="tri' + i + '" cx="' + q.x + '" cy="' + q.y + '" r="5" fill="#fff" stroke="' + color +
+              '" stroke-width="1.5" style="pointer-events:all;cursor:crosshair;touch-action:none;"/>'
+            : '<circle cx="' + q.x + '" cy="' + q.y + '" r="3" fill="#fff" stroke="' + color + '" stroke-width="1.5"/>'
+        )
+        .join("") +
       "</svg>"
     );
   }
 
+  const left = px(bounds.minX);
+  const top = py(bounds.minY);
+  const w = Math.max(1, (bounds.maxX - bounds.minX) * scale);
+  const h = Math.max(1, (bounds.maxY - bounds.minY) * scale);
   const isRound = source.shape === ColliderShape.CIRCLE || source.shape === ColliderShape.CAPSULE;
 
+  let handles = "";
+  if (editable) {
+    if (source.shape === ColliderShape.CIRCLE) {
+      handles = hdl("r", ox + source.radius, oy, "ew-resize");
+    } else if (source.shape === ColliderShape.CAPSULE) {
+      handles =
+        hdl("cr", ox + source.capsuleRadius, oy, "ew-resize") +
+        hdl("hh", ox, oy - (source.capsuleHalfHeight + source.capsuleRadius), "ns-resize");
+    } else {
+      const hw = source.width / 2;
+      const hh = source.height / 2;
+      handles =
+        hdl("w+", ox + hw, oy, "ew-resize") + hdl("w-", ox - hw, oy, "ew-resize") +
+        hdl("h-", ox, oy - hh, "ns-resize") + hdl("h+", ox, oy + hh, "ns-resize");
+    }
+  }
+
   return (
-    '<div class="animpanel-collider-overlay" style="position:absolute;pointer-events:none;' +
+    '<div class="animpanel-collider-overlay"' + (editable ? ' data-anim-handle="move"' : "") +
+    ' style="position:absolute;pointer-events:' + (editable ? "auto" : "none") + ";" + (editable ? "cursor:move;touch-action:none;" : "") +
     "left:" + left + "px;top:" + top + "px;width:" + w + "px;height:" + h + "px;" +
-    "border:1.5px solid " + color + ";box-sizing:border-box;" +
+    "border:1.5px solid " + color + ";box-sizing:border-box;background:" + color + "18;" +
     (isRound ? "border-radius:999px;" : "") +
-    '"></div>'
+    '"></div>' + handles
   );
 }
 
@@ -447,9 +503,18 @@ function _renderColliderOverrideSection(clip) {
               "</div>"
           )
         : ov.shape === ColliderShape.TRIANGLE
-        ? '<div class="static-body-note" style="padding:2px 0 6px;color:#8a93a0;font-size:10px;">' +
-          "Select this entity and pick this clip from the Inspector to drag its 3 points in the Scene view." +
-          "</div>"
+        ? [0, 1, 2]
+            .map((i) => {
+              const q = (ov.trianglePoints && ov.trianglePoints[i]) || { x: 0, y: 0 };
+              return row(
+                "Point " + (i + 1),
+                '<div style="display:flex;gap:4px;width:100%;">' +
+                  numInput("X", q.x, f("trianglePoints." + i + ".x")) +
+                  numInput("Y", q.y, f("trianglePoints." + i + ".y")) +
+                  "</div>"
+              );
+            })
+            .join("")
         : row(
             "Size",
             '<div style="display:flex;gap:4px;width:100%;">' +
@@ -457,6 +522,20 @@ function _renderColliderOverrideSection(clip) {
               numInput("H", ov.height, f("height")) +
               "</div>"
           ));
+  }
+
+  if (ov) {
+    shapeFieldsHtml +=
+      row(
+        "Offset",
+        '<div style="display:flex;gap:4px;width:100%;">' +
+          numInput("X", ov.offsetX || 0, f("offsetX")) +
+          numInput("Y", ov.offsetY || 0, f("offsetY")) +
+          "</div>"
+      ) +
+      '<div class="static-body-note" style="padding:2px 0 6px;color:#8a93a0;font-size:10px;">' +
+      "Tip: turn on \u201CShow collider on frame\u201D, then drag the shape to move its offset and drag the white handles to reshape it." +
+      "</div>";
   }
 
   return (

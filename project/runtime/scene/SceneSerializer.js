@@ -89,7 +89,11 @@ export function serializeScene(world) {
       // live edit could push onto.
       prefabOverrides: JSON.parse(JSON.stringify(entity.prefabOverrides || {})),
       components: Object.fromEntries(
-        Array.from(entity.components.entries()).map(([type, comp]) => [type, { ...comp }])
+        // Deep copy (same as serializeEntity): a shallow spread shared nested
+        // data (animation clips, collider overrides, trianglePoints...) with the
+        // live component, so editing it later silently rewrote every earlier
+        // undo snapshot and Undo restored nothing for those fields.
+        Array.from(entity.components.entries()).map(([type, comp]) => [type, JSON.parse(JSON.stringify(comp))])
       ),
     })),
   };
