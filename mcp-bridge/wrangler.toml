@@ -1,0 +1,11 @@
+name = "realot-mcp-relay"
+main = "cloudflare-worker.js"
+compatibility_date = "2026-10-18"
+
+[[durable_objects.bindings]]
+name = "REALOT_SESSIONS"
+class_name = "RealotSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RealotSession"]

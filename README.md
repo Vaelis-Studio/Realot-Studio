@@ -56,7 +56,13 @@ creating the APK; the finished APK runs independently.
 
 ## What is intentionally not included
 
-This client distribution excludes the local Android SDK/Gradle tooling,
-server-side APK builder, Node server, tests and verification utilities,
-Replit configuration, Replit task/skill files, caches, workspace secrets, Git
-metadata, temporary archives, and deployment-only server configuration.
+This client distribution excludes the local Android SDK/Gradle tooling and
+server-side APK builder. The optional `mcp-bridge/server.mjs` is a local-only
+Claude integration helper, not a game-hosting server. Tests and verification
+utilities, Replit configuration, Replit task/skill files, caches, workspace
+secrets, Git metadata, temporary archives, and deployment-only server
+configuration are not part of this client ZIP.
+
+## Claude / MCP bridge
+
+Realot includes a local MCP option and a deployment-ready hosted relay for the currently open browser editor. The hosted UI lets users create a session and copy its remote MCP URL/token without running terminal commands. The relay must be deployed by the Realot operator before use; see `mcp-bridge/HOSTED-RELAY.md`. It does not store project files in cloud storage, and Claude loses access when the paired editor disconnects. Users still need to add the custom connector in Claude. The local bridge instructions remain in `mcp-bridge/README.md`.
