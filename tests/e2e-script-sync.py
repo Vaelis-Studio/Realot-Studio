@@ -47,7 +47,7 @@ with sync_playwright() as p:
         print("menus:", ed.evaluate("[...document.querySelectorAll('[data-action=toggle-menu]')].map(e=>e.dataset.menu)"))
         ed.evaluate("document.querySelectorAll('[data-action=toggle-menu]')[0].click()"); ed.wait_for_timeout(400)
     with ed.expect_download(timeout=30000) as dl:
-        ed.evaluate("document.querySelector('[data-action=\"save-project\"]').click()")
+        ed.evaluate("(document.querySelector('[data-action=save-project][data-copy]')||document.querySelector('[data-action=save-project]')).click()")
     vs_bytes = open(dl.value.path(),'rb').read(); print("saved:", dl.value.suggested_filename, len(vs_bytes), "bytes")
     # tamper: stored script = B, embedded scene copies = STALE
     zin = zipfile.ZipFile(io.BytesIO(vs_bytes)); out = io.BytesIO(); zout = zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED)

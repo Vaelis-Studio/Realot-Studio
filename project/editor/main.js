@@ -47,6 +47,7 @@ import { renderStatusBar, startLiveStats } from "./panels/StatusBar.js";
 import { mountOrUpdateSceneViewport, getGame, detachViewportCanvas, isInitialProjectLoadDone } from "./viewport/SceneViewport.js";
 import { openPlayWindow, closePlayWindow, isPlayWindowOpen, getPlayWindow, isTrustedPlayMessage, sendPlayPayload } from "./viewport/PlayWindow.js";
 import { attachEditorEvents, loadProjectFromFile } from "./state/EditorEvents.js";
+import { adoptFileHandle } from "./state/FileSync.js";
 import { installAndroidBuildLeaveGuard } from "./state/AndroidBuildSession.js";
 import { editorState, pushLog, dirtyState } from "./state/EditorState.js";
 import { getEngineSettings } from "./state/EngineSettings.js";
@@ -73,7 +74,7 @@ installConsoleCapture();
 // case index.html's own hasUnsavedChanges() correctly treats it as
 // "can't tell, don't risk it" and allows the reload anyway).
 window.__realotDirtyCheck = function () {
-  return dirtyState.isDirty === true;
+  return dirtyState.isDirty === true || (editorState.fileAutoUpdate === true && dirtyState.fileDirty === true);
 };
 
 // Same pattern as __realotDirtyCheck just above, for index.html's
@@ -439,7 +440,11 @@ function boot() {
       const handle = launchParams && launchParams.files && launchParams.files[0];
       if (!handle) return;
       handle.getFile()
-        .then((file) => loadProjectFromFile(file, { skipReplaceConfirm: true }))
+        .then((file) => loadProjectFromFile(file, { skipReplaceConfirm: true }).then((ok) => {
+          // Ask once whether edits should keep updating THIS file (every 60 s
+          // and on exit), exactly like the normal autosave.
+          if (ok) return adoptFileHandle(handle, { confirmFirst: true });
+        }))
         .catch((err) => { pushLog("error", "Could not open the file: " + (err && err.message ? err.message : err)); render(); });
     });
   }
@@ -565,7 +570,7 @@ function boot() {
     // unsaved changes never shows this prompt at all — reloading a
     // fully-saved project is always silent.
     window.addEventListener("beforeunload", (e) => {
-      if (!dirtyState.isDirty) return;
+      if (!dirtyState.isDirty && !(editorState.fileAutoUpdate && dirtyState.fileDirty)) return;
       // Both of these are required for the prompt to show across
       // browsers — modern Chromium only needs preventDefault(), but
       // returnValue is kept for older/other engines that still read it.

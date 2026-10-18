@@ -628,7 +628,7 @@ export async function exportProject(game, projectName, options) {
   const blob = await zip.generateAsync({
     type: "blob",
     compression: "DEFLATE",
-    compressionOptions: { level: 9 },
+    compressionOptions: { level: (options && options.compressionLevel) || 9 },
   });
   const safeName = (projectName || "untitled-project").trim().replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase() || "untitled-project";
   // .realot is Realot's own project file extension — the archive itself
@@ -640,6 +640,19 @@ export async function exportProject(game, projectName, options) {
   // see the accept=".realot,.zip" input in Toolbar.js for the load side
   // (.zip kept there too, so projects saved before this change still
   // open normally).
+  // Opened by double-clicking a .realot file (File System Access handle):
+  // write the changes straight back into THAT file instead of downloading a
+  // second copy. Needs the user's one-time "allow editing" browser prompt.
+  if (options && options.fileHandle) {
+    const handle = options.fileHandle;
+    let perm = await handle.queryPermission({ mode: "readwrite" });
+    if (perm !== "granted") perm = await handle.requestPermission({ mode: "readwrite" });
+    if (perm !== "granted") throw new Error("permission to edit \"" + handle.name + "\" was not granted");
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return { optimizeStats, wroteToFile: handle.name };
+  }
   downloadBlob(blob, safeName + ".realot");
   return { optimizeStats };
 }

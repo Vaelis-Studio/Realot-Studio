@@ -284,8 +284,22 @@ function renderFileMenu() {
     '<button class="dropdown-menu-item" data-action="save-project" style="' +
     DROPDOWN_ITEM_STYLE + '">' +
     icon("download", 12) +
-    "<span>Save Project</span>" +
+    "<span>" + (editorState.fileHandle ? "Save to " + editorState.fileHandle.name : "Save Project") + "</span>" +
     "</button>" +
+    (editorState.fileHandle
+      ? '<button class="dropdown-menu-item" data-action="toggle-file-autoupdate" style="' +
+        DROPDOWN_ITEM_STYLE + '">' +
+        icon("download", 12) +
+        "<span>Auto-update file: " + (editorState.fileAutoUpdate ? (editorState.filePermissionNeeded ? "ON (click page to allow)" : "ON") : "OFF") + "</span>" +
+        "</button>"
+      : "") +
+    (editorState.fileHandle || typeof window.showSaveFilePicker === "function"
+      ? '<button class="dropdown-menu-item" data-action="save-project" data-copy="1" style="' +
+        DROPDOWN_ITEM_STYLE + '">' +
+        icon("download", 12) +
+        "<span>Save as copy (download)</span>" +
+        "</button>"
+      : "") +
     // Sticky (session-lifetime) toggle for the optional lossless
     // optimize pass in ProjectIO.js's exportProject() — label text
     // reflects state, same ": ON"/": OFF"/"…" convention as the

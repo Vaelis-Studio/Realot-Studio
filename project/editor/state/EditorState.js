@@ -317,6 +317,13 @@ export const editorState = {
   /** Render function reference — set by main.js so any module can
    *  trigger an editor re-render (e.g. the script editor opening/closing). */
   renderFn: null,
+  /** FileSystemFileHandle of the .realot the editor was launched with (double-click), or null. */
+  fileHandle: null,
+  /** True while the opened/saved .realot is being auto-updated (user agreed). */
+  fileAutoUpdate: false,
+  /** Write permission was lost and is re-requested on the next click. */
+  filePermissionNeeded: false,
+  fileLastSavedAt: 0,
 
   /** Script editor (editor/panels/ScriptEditorWindow.js) UI state. */
   scriptEditor: {
@@ -390,10 +397,24 @@ export const editorState = {
 export const dirtyState = {
   /** @type {boolean} */
   isDirty: false,
+  /**
+   * Changes not yet written to the user's .realot file (FileSync.js). Separate
+   * from isDirty because the normal browser-storage autosave clears isDirty
+   * without touching the file.
+   * @type {boolean}
+   */
+  fileDirty: false,
 };
 
 export function markDirty() {
   dirtyState.isDirty = true;
+  dirtyState.fileDirty = true;
+}
+
+/** Called after the project was written into the user's file. */
+export function markFileClean() {
+  dirtyState.fileDirty = false;
+  dirtyState.isDirty = false;
 }
 
 export function markClean() {

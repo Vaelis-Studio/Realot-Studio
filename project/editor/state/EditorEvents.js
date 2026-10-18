@@ -7,7 +7,20 @@
  * components on editorState.world (real scene data).
  */
 
-import { editorState, pushLog, markDirty } from "./EditorState.js";
+import { editorState, pushLog, markDirty, markClean, markFileClean } from "./EditorState.js";
+import { adoptFileHandle, isFileSyncActive, writeProjectToFile } from "./FileSync.js";
+
+async function showSaveFilePickerForProject(suggestedName) {
+  try {
+    return await window.showSaveFilePicker({
+      suggestedName,
+      types: [{ description: "Realot project", accept: { "application/x-realot-project": [".realot"] } }],
+    });
+  } catch (e) {
+    if (!(e && e.name === "AbortError")) pushLog("error", "Could not open the save dialog: " + (e && e.message ? e.message : e));
+    return null;
+  }
+}
 import { getEngineSettings, setEngineSettings } from "./EngineSettings.js";
 import { beginAndroidBuild, cancelAndroidBuild, endAndroidBuild, isAndroidBuildActive, wasAndroidBuildCancelled } from "./AndroidBuildSession.js";
 import { PANEL_IDS, defaultPanelVisibility, savePanelVisibility } from "./PanelVisibility.js";
@@ -1595,6 +1608,8 @@ let _lastSceneClick = { id: null, time: 0 };
         // (editorState.saveNow is only set for a launcher project —
         // see main.js).
         if (!editorState.saveNow) break;
+        // A .realot file is being kept up to date: save into it too (queued, never dropped).
+        if (isFileSyncActive()) writeProjectToFile("manual save", true);
         pushLog("log", "Saving…");
         render(); // reflect "Saving…" immediately rather than waiting for the async result
         editorState.saveNow().then((result) => {
@@ -1622,11 +1637,28 @@ let _lastSceneClick = { id: null, time: 0 };
       }
       case "save-project": {
         if (!editorState.game) break;
-        const projectName = window.prompt("Project name?", editorState.projectName || "Untitled Project");
+        // A file is being kept up to date (opened by double-click / Load Project,
+        // or chosen on a previous Save): write straight into it. The user already
+        // agreed to overwrite it when tracking started.
+        let fileHandle = !t.dataset.copy && editorState.fileHandle ? editorState.fileHandle : null;
+        if (!fileHandle && !t.dataset.copy && typeof window.showSaveFilePicker === "function") {
+          // First save with no file yet: let the user pick WHERE, then keep
+          // updating that file (no more downloads piling up).
+          const guess = ((editorState.projectName || "untitled-project").trim().replace(/[^a-zA-Z0-9_-]+/g, "-").toLowerCase() || "untitled-project") + ".realot";
+          showSaveFilePickerForProject(guess).then((h) => {
+            if (!h) return;
+            adoptFileHandle(h, { confirmFirst: false }).then(() => writeProjectToFile("first save", true));
+          });
+          break;
+        }
+        const projectName = fileHandle
+          ? editorState.projectName || fileHandle.name.replace(/\.[^.]+$/, "")
+          : window.prompt("Project name?", editorState.projectName || "Untitled Project");
         if (projectName === null) break; // cancelled
         editorState.projectName = projectName;
-        pushLog("log", "Saving project…");
+        pushLog("log", fileHandle ? "Saving to " + fileHandle.name + "…" : "Saving project…");
         exportProject(editorState.game, projectName, {
+          fileHandle,
           optimizeAssets: editorState.optimizeAssetsOnSave,
           // Live progress specifically for the optimize pass — the
           // rest of export (scene serialization, zipping) is fast
@@ -1637,6 +1669,12 @@ let _lastSceneClick = { id: null, time: 0 };
           onProgress: (msg) => pushLog("log", msg),
         })
           .then((result) => {
+            if (result && result.wroteToFile) {
+              markFileClean();
+              pushLog("log", "Saved changes to " + result.wroteToFile + ".");
+              render();
+              return;
+            }
             const stats = result && result.optimizeStats;
             if (stats) {
               const parts = [];
@@ -1654,6 +1692,12 @@ let _lastSceneClick = { id: null, time: 0 };
             }
           })
           .catch((err) => pushLog("error", "Failed to save project: " + err.message));
+        break;
+      }
+      case "toggle-file-autoupdate": {
+        editorState.fileAutoUpdate = !editorState.fileAutoUpdate;
+        pushLog("log", editorState.fileAutoUpdate ? "Auto-update of " + (editorState.fileHandle && editorState.fileHandle.name) + " is ON." : "Auto-update of the file is OFF (Save still writes to it).");
+        render();
         break;
       }
       case "toggle-optimize-assets-on-save": {
@@ -1762,7 +1806,25 @@ let _lastSceneClick = { id: null, time: 0 };
         // hidden inputs, since a styled <button> can't itself open a
         // native file picker.
         const input = document.querySelector('[data-action="load-project-input"]');
-        if (input) input.click();
+        if (typeof window.showOpenFilePicker === "function") {
+          // Chromium: pick via the File System Access picker so we keep a handle
+          // and can keep the file updated after loading (see FileSync.js).
+          window
+            .showOpenFilePicker({
+              types: [
+                { description: "Realot project", accept: { "application/x-realot-project": [".realot", ".rs", ".vs"], "application/zip": [".zip"] } },
+              ],
+            })
+            .then(async ([h]) => {
+              const file = await h.getFile();
+              const ok = await loadProjectFromFile(file);
+              if (ok && /\.realot$/i.test(h.name)) await adoptFileHandle(h, { confirmFirst: true });
+            })
+            .catch((e) => {
+              if (e && e.name === "AbortError") return;
+              if (input) input.click(); // anything else: normal file input
+            });
+        } else if (input) input.click();
         break;
       }
       case "open-export-window": {
