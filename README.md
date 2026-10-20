@@ -20,9 +20,12 @@ Open `http://localhost:5000/` and choose **Open Editor**.
 ## Android APK export
 
 The editor builds an HTML5 or PWA game ZIP in the browser, then sends that ZIP
-to the external Android build API. In **Export → Android APK**, add the API
-server URL and API key supplied by the server owner. The API endpoint must
-accept:
+to the Android build API at `https://builder--Vaelis-Server.replit.app`.
+The editor requests a temporary bearer key automatically and renews it when
+needed, so users do not need to visit the builder page or enter a shared
+permanent key. These keys expire after 48 hours. Key issuance is public
+self-service, not user authentication; anyone who can reach the service can
+request a temporary key.
 
 ```text
 POST /api/v1/build?name=<url-encoded-game-title>
@@ -31,9 +34,15 @@ POST /api/v1/build?name=<url-encoded-game-title>
 with the ZIP as the request body and the headers documented in
 `project/editor/export/ANDROID_EXPORT_CONTRACT.md`.
 
+For a different build server, use **Export → Android APK → Use a different
+server** and enter the URL and key supplied by that server's owner. Never put
+the permanent service key in this static client package.
+
 The client package does not contain Android SDK files, Gradle files, Java
 build scripts, or a local APK builder. The APK server is only needed while
-creating the APK; the finished APK runs independently.
+creating the APK; the finished APK runs independently. This distribution is
+preconfigured for the Vaelis APK service, so users only need to click **Export
+APK**; there is no custom-server or credential setup in the editor.
 
 ## Documentation and safety
 

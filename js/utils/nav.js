@@ -1,7 +1,7 @@
 /**
  * nav.js
  * Navigation from the launcher into the editor. The editor lives at
- * /project/editor/ and is opened in the same frame
+ * /project/editor/index.html and is opened in the same frame
  * (replacing the launcher) so the React host stays put and no new tab
  * is opened. The project id/name is passed as a query param so the
  * editor can identify the open project; the store also records the
@@ -24,7 +24,10 @@ window.RealotNav = {
         }
         if (project && project.id) window.RealotStore.touchProject(project.id);
         const qs = params.toString();
-        window.location.href = 'project/editor/' + (qs ? '?' + qs : '');
+        // Use the explicit document path. Some static hosts (including the
+        // Vite preview) fall back to the Hub for a folder URL ending in
+        // /project/editor/, rather than resolving that folder's index.html.
+        window.location.href = 'project/editor/index.html' + (qs ? '?' + qs : '');
     },
     backToHub() {
         window.location.href = './';

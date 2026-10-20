@@ -10,7 +10,7 @@
 import { handleMcpBody, KEY_PATTERN, NOT_CONNECTED_MESSAGE } from "./mcp-core.js";
 
 const CALL_TIMEOUT_MS = 25_000;
-const MAX_MCP_BODY = 256 * 1024;       // a tool call is tiny; refuse anything big
+const MAX_MCP_BODY = 256 * 1024;       // Asset bytes travel as 180 KiB chunks to stay below this cap.
 const MAX_EDITOR_MESSAGE = 6_000_000;  // screenshots are the largest reply
 const MAX_CALLS_PER_MINUTE = 90;       // per user key — protects the shared free quota
 

@@ -18,12 +18,27 @@ import { getAllScripts, getScriptSource, saveScript, scriptExists } from "../scr
 import { syncScriptSourcesInWorld } from "../scripting/ScriptSync.js";
 import { writeProjectToFile, isFileSyncActive } from "../state/FileSync.js";
 import { DEFAULT_RELAY_URL } from "./bridge-config.js";
+import { runMcpAssetTool } from "../mcp/McpAssetTools.js";
+import { runMcpEditorTool } from "../mcp/McpEditorTools.js";
+import { runMcpProjectTool } from "../mcp/McpProjectTools.js";
+import { runMcpWorkflowTool } from "../mcp/McpWorkflowTools.js";
+import { validateComponentProps, formatProblems } from "../mcp/ComponentRules.js";
 
 const STORE_KEY = "realot_claude_bridge";
 const MUTATING = new Set([
   "create_entity", "update_component", "add_component", "remove_component",
   "delete_entities", "write_script", "attach_script", "undo", "redo", "save_project",
+  "begin_asset_upload", "append_asset_upload_chunk", "complete_asset_upload", "cancel_asset_upload",
+  "rename_asset", "delete_asset", "create_animation_clip", "update_animation_clip",
+  "delete_animation_clip", "move_animation_frame", "delete_animation_frame", "update_tileset",
+  "paint_tilemap", "paint_navigation_cells", "update_navigation_world", "set_navigation_area_name",
+  "set_physics_layer_name", "set_collider_layer_filter",
+  "update_entity", "create_scene", "switch_scene", "rename_scene", "delete_scene",
+  "add_tag", "delete_tag", "create_prefab", "instantiate_prefab", "rename_prefab", "delete_prefab",
+  "create_folder", "rename_folder", "move_folder", "delete_folder", "update_prefab", "revert_prefab",
+  "unpack_prefab", "duplicate_scene", "delete_script", "set_script_enabled", "bake_navworld",
 ]);
+const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
 // ---------------------------------------------------------------- settings
 function loadCfg() {
@@ -175,7 +190,7 @@ function need(id) {
   return e;
 }
 function checkTypes(types) {
-  const bad = types.filter((t) => !COMPONENT_REGISTRY[t]);
+  const bad = types.filter((t) => !hasOwn(COMPONENT_REGISTRY, t));
   if (bad.length) throw new Error("Unknown component type(s): " + bad.join(", ") + ". Valid: " + Object.keys(COMPONENT_REGISTRY).join(", "));
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -211,6 +226,11 @@ async function runTool(name, a) {
       const comps = clone(a.components || {});
       checkTypes(Object.keys(comps));
       comps.Transform = { x: a.x ?? 0, y: a.y ?? 0, ...(comps.Transform || {}) };
+      for (const [ctype, cprops] of Object.entries(comps)) {
+        if (!cprops || typeof cprops !== "object" || Array.isArray(cprops)) return err("components." + ctype + " must be an object of properties.");
+        const createProblems = validateComponentProps(ctype, cprops, COMPONENT_REGISTRY[ctype]);
+        if (createProblems.length) return err(formatProblems("create_entity", ctype, createProblems));
+      }
       snapshotNow("scene");
       const e = instantiateEntity(world(), { name: a.name || "GameObject", tag: a.tag, active: true, components: comps });
       editorState.selectedId = e.id;
@@ -223,8 +243,10 @@ async function runTool(name, a) {
       const e = need(a.id);
       const c = e.getComponent(a.type);
       if (!c) return err("Entity " + a.id + " has no " + a.type + " component. Use add_component first.");
-      const unknown = Object.keys(a.props || {}).filter((k) => !(k in c));
-      if (unknown.length) return err("Unknown " + a.type + " properties: " + unknown.join(", ") + ". Known: " + Object.keys(c).join(", "));
+      const props = a.props;
+      if (!props || typeof props !== "object" || Array.isArray(props) || !Object.keys(props).length) return err("props must be a non-empty object, e.g. {\"intensity\": 2}. Call get_entity to see the component's current properties.");
+      const problems = validateComponentProps(a.type, props, COMPONENT_REGISTRY[a.type], c);
+      if (problems.length) return err(formatProblems("update_component", a.type, problems));
       snapshotNow("scene");
       for (const [k, v] of Object.entries(a.props || {})) c[k] = clone(v);
       changed("updated " + a.type + " on '" + e.name + "'");
@@ -235,6 +257,9 @@ async function runTool(name, a) {
       const e = need(a.id);
       checkTypes([a.type]);
       if (e.hasComponent(a.type)) return err("Entity already has " + a.type + ". Use update_component.");
+      if (a.props !== undefined && (!a.props || typeof a.props !== "object" || Array.isArray(a.props))) return err("props must be an object.");
+      const addProblems = validateComponentProps(a.type, a.props || {}, COMPONENT_REGISTRY[a.type]);
+      if (addProblems.length) return err(formatProblems("add_component", a.type, addProblems));
       snapshotNow("scene");
       e.addComponent(a.type, new COMPONENT_REGISTRY[a.type](clone(a.props || {})));
       changed("added " + a.type + " to '" + e.name + "'");
@@ -281,6 +306,9 @@ async function runTool(name, a) {
       return text(getScriptSource(a.name));
 
     case "write_script": {
+      if (typeof a.name !== "string" || !a.name.trim() || a.name.length > 240) return err("name must be a non-empty string (max 240 characters).");
+      if (typeof a.source !== "string") return err("source must be a string.");
+      if (a.source.length > 250_000) return err("source is too large (limit 250,000 characters).");
       let syntaxError = null;
       try { new Function(a.source); } catch (e) { syntaxError = String(e.message || e); }
       saveScript(a.name, a.source);
@@ -332,8 +360,17 @@ async function runTool(name, a) {
       return text(out.length ? out.join("; ") : "Nothing to save to (open a project from the launcher or keep a .realot file up to date).");
     }
 
-    default:
+    default: {
+      const assetResult = await runMcpAssetTool(name, a);
+      if (assetResult) return assetResult;
+      const editorResult = await runMcpEditorTool(name, a);
+      if (editorResult) return editorResult;
+      const projectResult = await runMcpProjectTool(name, a);
+      if (projectResult) return projectResult;
+      const workflowResult = await runMcpWorkflowTool(name, a);
+      if (workflowResult) return workflowResult;
       return err("Unknown tool: " + name);
+    }
   }
 }
 
@@ -403,7 +440,7 @@ export function openClaudeBridgePanel() {
   card.innerHTML =
     '<div style="display:flex;align-items:center;justify-content:space-between;">' +
     '<b style="font-size:16px;">Connect Claude to Realot</b><button id="cb-close" style="background:none;border:0;color:#aaa;font-size:20px;cursor:pointer;">\u00d7</button></div>' +
-    '<div style="color:#9aa;margin-top:4px;">Claude will be able to see your scene, add and change objects, write scripts and look at the viewport \u2014 and you can undo anything with Ctrl+Z.</div>' +
+    '<div style="color:#9aa;margin-top:4px;">Claude can edit your scene and scripts, import sprites and audio, build animations and tilesets, paint tilemaps and navigation, and edit physics layers. Scene changes can be undone with Ctrl+Z.</div>' +
     (simple ? "" : builderSetup) +
     head("Connect") +
     '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;"><button id="claude-bridge-toggle" class="pill-btn"></button><span id="claude-bridge-status" style="color:#9aa;"></span></div>' +

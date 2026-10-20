@@ -194,7 +194,7 @@ if (global.score &gt; best) save.set("best", global.score);</code></pre>
 <ul>
   <li><b>HTML5</b> – a plain web game. Upload the unzipped folder to any static host (itch.io, GitHub Pages, Netlify, Cloudflare Pages).</li>
   <li><b>PWA</b> – the same game plus a manifest and service worker so players can install it and play offline.</li>
-  <li><b>Android APK</b> – needs a build server. In the Export window add the server URL and API key supplied by whoever runs it. The editor sends your exported game to that server and downloads the finished APK. The APK itself runs without the server.</li>
+  <li><b>Android APK</b> – the built-in APK service is ready to use. The editor creates and renews a short-lived export key automatically, then sends your game and downloads the finished APK. For a different build server, enter the URL and key supplied by its owner. The APK itself runs without the build server.</li>
 </ul>
 <div class="note warn">
   <b>Don't open <code>index.html</code> straight from your disk.</b> Browsers block ES modules on <code>file://</code>. Upload it, or run a local server in the folder (for example <code>npx serve .</code> or <code>python3 -m http.server</code>) and open the address it prints.

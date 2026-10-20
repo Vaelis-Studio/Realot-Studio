@@ -76,39 +76,13 @@ export const editorState = {
    *  starting point the user can then override. */
   exportGameTitle: null,
   /** @type {"checking"|"awake"|"asleep"|null} live reachability status of
-   *  the Android build server (see ServerConfig.js's checkAndroidServerAwake()),
+   *  the built-in Android build service (see ServerConfig.js's checkAndroidServerAwake()),
    *  refreshed each time the Export popup opens (see EditorEvents.js's
    *  "open-export-window" case) so the Android card can show whether the
    *  server is currently up rather than the user finding out only after
    *  clicking Export and waiting on a free-tier host that may be asleep.
    *  Reset to null on close so it doesn't show a stale result next time. */
   androidServerStatus: null,
-  /** @type {Array<{id:string,label:string,serverUrl:string,apiKey:string}>}
-   *  the user's saved Android build servers (see ServerConfig.js's
-   *  listAndroidServers() — the real source of truth is localStorage;
-   *  this is a cache refreshed on "open-export-window" and whenever the
-   *  list changes, so ExportWindow.js can render synchronously without
-   *  every render() re-reading localStorage). */
-  androidServers: [],
-  /** @type {string|null} id of the currently-selected server in
-   *  androidServers above (see ServerConfig.js's getActiveAndroidServer()) —
-   *  cached the same way and for the same reason as androidServers. */
-  androidActiveServerId: null,
-  /** @type {boolean} whether the "add/edit Android build server" form is
-   *  expanded in the Export popup's Android card. */
-  androidServerFormOpen: false,
-  /** @type {string|null} id of the server being edited if the form above
-   *  was opened via "android-server-edit-open"; null means the form will
-   *  add a new server on save rather than update an existing one. */
-  androidServerFormEditingId: null,
-  /** @type {string} live-buffered form fields for the add/edit server
-   *  form (same live-buffer-without-render pattern as exportGameTitle —
-   *  see EditorEvents.js's input handler for these). */
-  androidServerFormLabel: "",
-  androidServerFormUrl: "",
-  androidServerFormKey: "",
-  /** @type {string} inline validation message for the add/edit server form */
-  androidServerFormError: "",
   /** @type {{dataUrl: string, name: string}|null} the favicon the user
    *  picked in the Export popup, held as a plain dataUrl (this is a
    *  single small icon someone picks once per export session, not a

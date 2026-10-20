@@ -35,8 +35,9 @@ export async function handleMcpMessage(msg, env) {
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
         instructions:
-          "Controls a live Realot 2D game-engine editor. Call get_editor_state first, then list_entities. " +
-          "Edits are undoable (undo). The user must have the editor open with the Claude bridge connected.",
+          "Controls a live Realot 2D game-engine editor. Start with get_editor_state, then inspect entities and list_assets, list_animations, list_tilesets, list_tilemaps, list_navigation_worlds, list_physics_layers, list_scenes, list_tags, or list_prefabs as needed. " +
+          "For file imports, call begin_asset_upload, send sequential base64 chunks using the returned chunk_size_bytes with append_asset_upload_chunk, then call complete_asset_upload. Use animation-zip for image ZIPs, animation-gif for GIF clips, animation-sheet for sprite sheets, and tileset-sheet or tileset-tile for custom tiles. " +
+          "Animation and map edits are undoable where supported (undo). The user must have the editor open with the Claude bridge connected; read-only mode blocks project changes.",
       });
     }
     case "ping":

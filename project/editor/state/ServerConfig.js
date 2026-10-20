@@ -1,29 +1,27 @@
-// Android APK export: where the build requests go, and how the user
-// tells the editor which server to use.
+// Android APK export: where build requests go and how the editor keeps
+// per-browser access to the build service.
 //
 // This editor is deployed as static files (e.g. on Cloudflare Pages), which cannot
 // run the Android/Gradle build itself. The actual build happens on a
 // separate server that turns the uploaded project zip into an APK.
 //
-// EACH USER RUNS/OWNS THEIR OWN BUILD SERVER (or points at whichever one
-// they've been given access to) rather than everyone sharing one baked
-// into this file. That avoids one shared server/API key being hardcoded
-// into the shipped editor bundle (visible to anyone via devtools) and
-// having to absorb every user's build load on one host.
+// This editor distribution always uses the built-in APK service. Its
+// permanent service key is never shipped to the browser; the service issues
+// a separate short-lived bearer key that this client stores locally and
+// renews before a later build. The key is not bound to an origin or account.
 //
-// NOTHING is hardcoded here: no server URL and no API key ship with the
-// editor. The Export popup's Android card only ever uses the server URL
-// and API key the user typed in themselves (saved in this browser's
-// localStorage). A user can save more than one such pair (e.g. a personal
-// server and a team one) and switch between them — see the
-// credential-list functions below.
+// The service URL is public configuration. The permanent API key is not.
+// Short-lived user keys and custom-server credentials are stored only in
+// this browser's localStorage.
 
 // The server URL is used exactly as the user typed it: nothing is added to
 // it (no https://, no extra path). Only surrounding spaces and trailing
 // slashes are dropped so the fixed API paths the editor appends itself
 // (e.g. /api/v1/build) don't end up with a double slash.
-/** The Realot APK service: where users get an API key (or upload an HTML5 export). */
-export const APK_SERVICE_URL = "https://apk-builder--realot-server.replit.app/";
+/** The Realot APK service used by the built-in Android export flow. */
+export const APK_SERVICE_URL = "https://builder--Vaelis-Server.replit.app";
+const BUILTIN_SERVER_ID = "vaelis-apk-builder";
+const BUILTIN_SERVER_LABEL = "Vaelis APK Builder";
 
 export function normalizeServerUrl(raw) {
   return String(raw || "").trim().replace(/\/+$/, "");
@@ -33,10 +31,9 @@ import { setAndroidBuildTicket, markAndroidJobFinished, resolveAgainstServer } f
 
 const STORAGE_KEY = "realot.androidBuildServers";
 
-// Shape of a saved credential entry:
-//   { id: string, label: string, serverUrl: string, apiKey: string }
-// `id` is a stable identifier (not shown to the user) so the "active"
-// pointer survives a rename of `label`.
+// The saved array format is retained for compatibility with older editor
+// versions. This version reads only the built-in entry; older custom-server
+// records are ignored and left untouched in localStorage.
 
 function _loadAll() {
   try {
@@ -62,57 +59,85 @@ function _saveAll(data) {
   }
 }
 
-export function listAndroidServers() {
-  return _loadAll().servers;
-}
-
 export function getActiveAndroidServer() {
-  const { servers, activeId } = _loadAll();
-  if (servers.length === 0) return null;
-  return servers.find((s) => s.id === activeId) || servers[0];
+  const { servers } = _loadAll();
+  const savedService = servers.find((server) => server.id === BUILTIN_SERVER_ID);
+  if (!savedService) {
+    return {
+      id: BUILTIN_SERVER_ID,
+      label: BUILTIN_SERVER_LABEL,
+      serverUrl: APK_SERVICE_URL,
+      apiKey: "",
+      managedKey: true,
+      keyExpiresAt: null,
+    };
+  }
+  const savedUrlMatches = normalizeServerUrl(savedService.serverUrl) === APK_SERVICE_URL;
+  return {
+    ...savedService,
+    id: BUILTIN_SERVER_ID,
+    label: BUILTIN_SERVER_LABEL,
+    serverUrl: APK_SERVICE_URL,
+    apiKey: savedUrlMatches ? savedService.apiKey : "",
+    managedKey: true,
+    keyExpiresAt: savedUrlMatches ? savedService.keyExpiresAt : null,
+  };
 }
 
-export function setActiveAndroidServer(id) {
-  const data = _loadAll();
-  if (!data.servers.some((s) => s.id === id)) return;
-  data.activeId = id;
-  _saveAll(data);
-}
+/**
+ * Get or renew the short-lived key for a managed service entry. The
+ * permanent service key is never sent to the editor; this request is
+ * intentionally unauthenticated and returns a temporary bearer key.
+ */
+export async function ensureAndroidServerKey(server, signal) {
+  if (!server || !server.serverUrl) throw new Error("No Android build server configured.");
 
-// Adds a new saved server, or updates one in place if editingId matches
-// an existing entry (used by the Export popup's "add/edit server" form).
-// Returns the entry's id.
-export function saveAndroidServer({ label, serverUrl, apiKey }, editingId = null) {
-  const data = _loadAll();
-  const cleanUrl = normalizeServerUrl(serverUrl);
-  const cleanKey = String(apiKey || "").trim();
-  const cleanLabel = String(label || "").trim() || cleanUrl.replace(/^https?:\/\//, "");
-
-  if (editingId) {
-    const existing = data.servers.find((s) => s.id === editingId);
-    if (existing) {
-      existing.label = cleanLabel;
-      existing.serverUrl = cleanUrl;
-      existing.apiKey = cleanKey;
-      _saveAll(data);
-      return existing.id;
-    }
+  const managed = server.managedKey === true;
+  const expiresAt = Date.parse(server.keyExpiresAt || "");
+  const keyIsFresh = Number.isFinite(expiresAt) && expiresAt > Date.now() + 5 * 60 * 1000;
+  if (server.apiKey && (!managed || keyIsFresh)) return server;
+  if (!managed) {
+    throw new Error("This Android build server needs an API key. Add its key in the Export settings.");
   }
 
-  const id = "srv_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  data.servers.push({ id, label: cleanLabel, serverUrl: cleanUrl, apiKey: cleanKey });
-  if (!data.activeId) data.activeId = id; // first one added becomes active automatically
-  _saveAll(data);
-  return id;
-}
-
-export function deleteAndroidServer(id) {
-  const data = _loadAll();
-  data.servers = data.servers.filter((s) => s.id !== id);
-  if (data.activeId === id) {
-    data.activeId = data.servers.length > 0 ? data.servers[0].id : null;
+  const response = await fetch(normalizeServerUrl(server.serverUrl) + "/api/v1/keys", {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+    signal,
+  });
+  let body = {};
+  try {
+    body = await response.json();
+  } catch (_) {}
+  if (!response.ok) {
+    throw new Error(
+      body && body.error
+        ? body.error
+        : "The APK service could not create an export key (" + response.status + ")."
+    );
   }
+  if (!body || !body.apiKey || !body.expiresAt || !Number.isFinite(Date.parse(body.expiresAt))) {
+    throw new Error("The APK service returned an invalid temporary export key.");
+  }
+
+  const updated = {
+    id: server.id || BUILTIN_SERVER_ID,
+    label: server.label || BUILTIN_SERVER_LABEL,
+    serverUrl: normalizeServerUrl(server.serverUrl),
+    apiKey: body.apiKey,
+    managedKey: true,
+    keyExpiresAt: body.expiresAt,
+  };
+  const data = _loadAll();
+  const existingIndex = data.servers.findIndex((entry) => entry.id === updated.id);
+  if (existingIndex >= 0) data.servers[existingIndex] = updated;
+  else data.servers.push(updated);
+  data.activeId = updated.id;
   _saveAll(data);
+
+  Object.assign(server, updated);
+  return server;
 }
 
 // Build service route. Sends the game title as a query param and the

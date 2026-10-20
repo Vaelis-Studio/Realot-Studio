@@ -18,7 +18,7 @@
 
 import { editorState } from "../state/EditorState.js";
 import { icon } from "../icons/IconLibrary.js";
-import { getActiveAndroidServer, APK_SERVICE_URL } from "../state/ServerConfig.js";
+import { getActiveAndroidServer } from "../state/ServerConfig.js";
 import { isAndroidBuildActive } from "../state/AndroidBuildSession.js";
 
 /**
@@ -201,109 +201,20 @@ function renderServerBadge(status) {
   return "";
 }
 
-/**
- * Android build servers are user-owned (see ServerConfig.js's top
- * comment) rather than one baked into the editor, so this renders a
- * small management panel directly under the Android card: a dropdown of
- * the user's saved servers (if any), and an add/edit form. Kept as part
- * of the Android FORMATS entry rather than a separate top-level section
- * since it's meaningless for any other export target.
- */
-function renderApiKeyHelp() {
-  return (
-    '<div style="font-size:11px;color:#c8d0de;margin-bottom:8px;line-height:1.5;">Need an API key? ' +
-    '<a href="' + escAttr(APK_SERVICE_URL) + '" target="_blank" rel="noopener noreferrer" ' +
-    'style="color:#7cd4ff;font-weight:600;text-decoration:underline;">Click HERE</a> to get your API key.' +
-    "</div>"
-  );
-}
-
 function renderAndroidServerPanel() {
-  const servers = editorState.androidServers || [];
-  const activeId = editorState.androidActiveServerId;
-
-  let body = "";
-  if (servers.length === 0 && !editorState.androidServerFormOpen) {
-    body =
-      '<div style="font-size:10.5px;color:#8a93a0;margin-bottom:8px;line-height:1.5;">' +
-      "The editor can't compile APKs itself \u2014 Android builds run on the Realot APK service. " +
-      "Add the server URL and your API key to get started." +
-      "</div>" +
-      renderApiKeyHelp() +
-      '<button type="button" data-action="android-server-add-open" style="' + SMALL_BTN_STYLE + '">+ Add build server</button>';
-  } else if (!editorState.androidServerFormOpen) {
-    body =
-      '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;">' +
-      servers.map((s) => renderServerRow(s, s.id === activeId)).join("") +
-      "</div>" +
-      renderApiKeyHelp() +
-      '<div style="display:flex;gap:10px;align-items:center;">' +
-      '<button type="button" data-action="android-server-add-open" style="' + SMALL_BTN_STYLE + '">+ Add another server</button>' +
-      "</div>";
-  } else {
-    body = renderAndroidServerForm();
-  }
-
+  const server = getActiveAndroidServer();
   return (
     '<div style="margin:-4px 0 10px 30px;padding:10px 12px;background:#171b26;border:1px solid #2e3a50;border-radius:6px;">' +
-    body +
-    "</div>"
-  );
-}
-
-function renderServerRow(server, isActive) {
-  return (
-    '<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;' +
-    (isActive ? "background:#22304a;border:1px solid #3a5a8a;" : "background:#1e2330;border:1px solid #2e3a50;") +
-    '">' +
-    '<button type="button" data-action="android-server-select" data-server-id="' + escAttr(server.id) + '" ' +
-    'style="flex:1;min-width:0;text-align:left;background:none;border:none;color:' + (isActive ? "#e2e8f2" : "#c8d0de") + ';' +
-    'font-size:11px;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0;">' +
-    (isActive ? '<span style="color:#7ee787;flex-shrink:0;">\u25cf</span>' : '<span style="color:#4a5470;flex-shrink:0;">\u25cb</span>') +
-    '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escAttr(server.label) + "</span>" +
-    "</button>" +
-    '<button type="button" data-action="android-server-edit-open" data-server-id="' + escAttr(server.id) + '" ' +
-    'title="Edit" style="background:none;border:none;color:#6b7488;cursor:pointer;padding:2px 4px;flex-shrink:0;font-size:10px;">Edit</button>' +
-    '<button type="button" data-action="android-server-delete" data-server-id="' + escAttr(server.id) + '" ' +
-    'title="Remove" style="background:none;border:none;color:#6b7488;cursor:pointer;padding:2px;flex-shrink:0;">' + icon("trash", 12) + "</button>" +
-    "</div>"
-  );
-}
-
-function renderAndroidServerForm() {
-  const isEditing = !!editorState.androidServerFormEditingId;
-  return (
-    '<div style="font-size:10.5px;color:#8a93a0;margin-bottom:8px;line-height:1.5;">' +
-    (isEditing ? "Editing build server. " : "") +
-    "Enter the server URL and your API key. They are saved only in this browser." +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;">' +
+    '<span style="font-size:11px;color:#e2e8f2;font-weight:600;">' + escAttr(server.label) + "</span>" +
+    '<span style="font-size:9px;color:#7ee787;background:#16281f;border-radius:3px;padding:1px 6px;">AUTOMATIC</span>' +
     "</div>" +
-    renderApiKeyHelp() +
-    '<label style="display:block;font-size:10px;color:#8a93a0;margin-bottom:3px;">Label <span style="color:#5a6480;">(optional)</span></label>' +
-    '<input type="text" data-action="android-server-label-input" value="' + escAttr(editorState.androidServerFormLabel || "") + '" ' +
-    'placeholder="e.g. My build server" style="' + SMALL_INPUT_STYLE + 'margin-bottom:8px;" />' +
-    '<label style="display:block;font-size:10px;color:#8a93a0;margin-bottom:3px;">Server URL</label>' +
-    '<input type="text" data-action="android-server-url-input" value="' + escAttr(editorState.androidServerFormUrl || "") + '" ' +
-    'placeholder="' + escAttr(APK_SERVICE_URL.replace(/\/$/, "")) + '" style="' + SMALL_INPUT_STYLE + 'margin-bottom:8px;" />' +
-    '<label style="display:block;font-size:10px;color:#8a93a0;margin-bottom:3px;">API Key</label>' +
-    '<input type="text" data-action="android-server-key-input" value="' + escAttr(editorState.androidServerFormKey || "") + '" ' +
-    'placeholder="Your API key" style="' + SMALL_INPUT_STYLE + 'margin-bottom:10px;" />' +
-    (editorState.androidServerFormError
-      ? '<div style="font-size:10.5px;color:#f0b849;margin-bottom:8px;">' + escAttr(editorState.androidServerFormError) + "</div>"
-      : "") +
-    '<div style="display:flex;gap:8px;">' +
-    '<button type="button" data-action="android-server-form-save" ' +
-    'style="' + SMALL_BTN_STYLE + '">' + (isEditing ? "Save changes" : "Add server") + "</button>" +
-    '<button type="button" data-action="android-server-form-cancel" style="background:none;border:none;color:#8a93a0;font-size:11px;cursor:pointer;">Cancel</button>' +
+    '<div style="font-size:10.5px;color:#8a93a0;line-height:1.5;">' +
+    "No server or API-key setup is needed. Click Export APK; the editor creates and renews temporary access automatically." +
+    "</div>" +
     "</div>"
   );
 }
-
-const SMALL_BTN_STYLE =
-  "background:#2e3a50;border:1px solid #3a4560;color:#c8d0de;border-radius:5px;padding:5px 10px;font-size:10.5px;cursor:pointer;";
-
-const SMALL_INPUT_STYLE =
-  "width:100%;box-sizing:border-box;background:#0f1219;border:1px solid #3a4560;border-radius:5px;" +
-  "color:#e2e8f2;font-size:11px;padding:6px 8px;font-family:inherit;";
 
 function renderCard(fmt, serverStatus) {
   if (fmt.comingSoon) {

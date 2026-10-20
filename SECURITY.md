@@ -60,8 +60,16 @@ Things to know:
   origin matters.
 - **Import prompt:** loading a project that contains scripts asks for
   confirmation first.
-- **No secrets shipped:** Android build server URLs and keys are typed by the
-  user and stored in that browser's `localStorage`.
+- **No permanent service key shipped:** the built-in APK service URL is public
+  configuration. On the first Android export, the editor requests a temporary
+  bearer key that expires after 48 hours, saves it in that browser's
+  `localStorage`, and renews it automatically before a later build. Custom
+  server settings are not available in this fixed-service editor. Never put
+  the permanent service key in this static client.
+- **Temporary-key issuance is not access control:** the default service lets
+  anyone who can reach its key endpoint request a temporary key. The key is not
+  bound to a browser, origin, or user account. Add server-side authentication
+  and usage limits if APK builds should be restricted to approved users.
 
 ## What is still exposed
 

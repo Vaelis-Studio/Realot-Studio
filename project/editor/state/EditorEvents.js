@@ -25,8 +25,7 @@ async function showSaveFilePickerForProject(suggestedName) {
 import { getEngineSettings, setEngineSettings } from "./EngineSettings.js";
 import { beginAndroidBuild, cancelAndroidBuild, endAndroidBuild, isAndroidBuildActive, wasAndroidBuildCancelled } from "./AndroidBuildSession.js";
 import { PANEL_IDS, defaultPanelVisibility, savePanelVisibility } from "./PanelVisibility.js";
-import { APK_SERVICE_URL } from "./ServerConfig.js";
-import { androidExportEndpoint, androidExportHeaders, pollAndroidBuildJob, checkAndroidServerAwake, getActiveAndroidServer, listAndroidServers, setActiveAndroidServer, saveAndroidServer, deleteAndroidServer, uploadWebExportForAndroid, confirmAndroidDelivery } from "./ServerConfig.js";
+import { androidExportEndpoint, androidExportHeaders, pollAndroidBuildJob, checkAndroidServerAwake, getActiveAndroidServer, ensureAndroidServerKey, uploadWebExportForAndroid, confirmAndroidDelivery } from "./ServerConfig.js";
 import { Transform, TRANSFORM } from "../../runtime/components/Transform.js";
 import { CAMERA } from "../../runtime/components/Camera.js";
 import { SPRITE_RENDERER, SpriteRenderer } from "../../runtime/components/SpriteRenderer.js";
@@ -1846,12 +1845,10 @@ let _lastSceneClick = { id: null, time: 0 };
           editorState.exportGameTitle = editorState.projectName || "";
         }
         editorState.openMenu = null; // close the File dropdown, if that's where this was clicked from
-        // Kick off a background check of the currently-selected Android
-        // build server so the card can show "Server awake" / "Server
+        // Kick off a background check of the built-in Android
+        // build service so the card can show "Server awake" / "Server
         // asleep" instead of the user finding out only after clicking
         // Export and waiting.
-        editorState.androidServers = listAndroidServers();
-        editorState.androidActiveServerId = getActiveAndroidServer() ? getActiveAndroidServer().id : null;
         refreshAndroidServerStatus(render);
         render();
         break;
@@ -1860,7 +1857,6 @@ let _lastSceneClick = { id: null, time: 0 };
         editorState.exportOpen = false;
         if (!isAndroidBuildActive()) editorState.exportStatus = null;
         editorState.androidServerStatus = null;
-        editorState.androidServerFormOpen = false;
         render();
         break;
       }
@@ -1871,77 +1867,6 @@ let _lastSceneClick = { id: null, time: 0 };
       }
       case "export-favicon-clear": {
         editorState.exportFavicon = null;
-        render();
-        break;
-      }
-      case "android-server-select": {
-        const id = t.dataset.serverId;
-        setActiveAndroidServer(id);
-        editorState.androidServers = listAndroidServers();
-        editorState.androidActiveServerId = id;
-        // Re-check reachability for the newly-selected server.
-        refreshAndroidServerStatus(render);
-        render();
-        break;
-      }
-      case "android-server-add-open": {
-        editorState.androidServerFormOpen = true;
-        editorState.androidServerFormEditingId = null;
-        editorState.androidServerFormLabel = "";
-        editorState.androidServerFormUrl = APK_SERVICE_URL.replace(/\/$/, ""); // prefilled with the Realot APK service; editable
-        editorState.androidServerFormKey = "";
-        editorState.androidServerFormError = "";
-        render();
-        break;
-      }
-      case "android-server-edit-open": {
-        const id = t.dataset.serverId;
-        const server = listAndroidServers().find((s) => s.id === id);
-        if (!server) break;
-        editorState.androidServerFormOpen = true;
-        editorState.androidServerFormEditingId = id;
-        editorState.androidServerFormLabel = server.label;
-        editorState.androidServerFormUrl = server.serverUrl;
-        editorState.androidServerFormKey = server.apiKey;
-        editorState.androidServerFormError = "";
-        render();
-        break;
-      }
-      case "android-server-form-cancel": {
-        editorState.androidServerFormOpen = false;
-        editorState.androidServerFormError = "";
-        render();
-        break;
-      }
-      case "android-server-form-save": {
-        const url = (editorState.androidServerFormUrl || "").trim();
-        const key = (editorState.androidServerFormKey || "").trim();
-        if (!url || !key) {
-          // The button is always clickable (typing never re-renders, so a render-time
-          // "disabled" state could never switch on). Validate here and say what is missing.
-          editorState.androidServerFormError = !url && !key ? "Enter the server URL and your API key." : !url ? "Enter the server URL." : "Enter your API key.";
-          render();
-          break;
-        }
-        editorState.androidServerFormError = "";
-        const id = saveAndroidServer(
-          { label: editorState.androidServerFormLabel, serverUrl: url, apiKey: key },
-          editorState.androidServerFormEditingId
-        );
-        setActiveAndroidServer(id);
-        editorState.androidServers = listAndroidServers();
-        editorState.androidActiveServerId = id;
-        editorState.androidServerFormOpen = false;
-        refreshAndroidServerStatus(render);
-        render();
-        break;
-      }
-      case "android-server-delete": {
-        const id = t.dataset.serverId;
-        deleteAndroidServer(id);
-        editorState.androidServers = listAndroidServers();
-        const active = getActiveAndroidServer();
-        editorState.androidActiveServerId = active ? active.id : null;
         render();
         break;
       }
@@ -1957,23 +1882,30 @@ let _lastSceneClick = { id: null, time: 0 };
           if (!server) {
             editorState.exportStatus = {
               phase: "error",
-              error: "No Android build server set up yet. Add one below \u2014 you'll need your build server's URL and API key.",
+              error: "No Android build service is available.",
             };
             render();
             break;
           }
           // From here until the build ends, Cancel / the restart warning apply.
           const buildSignal = beginAndroidBuild(server);
-          buildExport(editorState.game, {
-            projectName: gameTitle,
-            faviconDataUrl: editorState.exportFavicon ? editorState.exportFavicon.dataUrl : null,
-            format: "html",
-            onProgress: (message) => {
-              if (!isAndroidBuildActive()) return; // cancelled while packaging — keep "Cancelling…"
-              editorState.exportStatus = { phase: "running", message };
+          editorState.exportStatus = { phase: "running", message: "Connecting to APK service\u2026" };
+          render();
+          ensureAndroidServerKey(server, buildSignal)
+            .then(() => {
+              if (!isAndroidBuildActive()) throw new DOMException("Build cancelled.", "AbortError");
               render();
-            },
-          })
+              return buildExport(editorState.game, {
+                projectName: gameTitle,
+                faviconDataUrl: editorState.exportFavicon ? editorState.exportFavicon.dataUrl : null,
+                format: "html",
+                onProgress: (message) => {
+                  if (!isAndroidBuildActive()) return; // cancelled while packaging — keep "Cancelling…"
+                  editorState.exportStatus = { phase: "running", message };
+                  render();
+                },
+              });
+            })
             .then(({ zip, stats }) => {
               if (!isAndroidBuildActive()) throw new DOMException("Build cancelled.", "AbortError");
               editorState.exportStatus = { phase: "running", message: "Preparing Android build\u2026" };
@@ -2102,10 +2034,9 @@ let _lastSceneClick = { id: null, time: 0 };
               if (err instanceof TypeError) {
                 message =
                   "The browser couldn't complete the request to \u201C" + server.label + "\u201D (" + server.serverUrl + "). " +
-                  "The server being up isn't enough \u2014 this exact error also happens when the server blocks the editor " +
-                  "(CORS: it must allow POST/GET/DELETE/OPTIONS and the headers Content-Type, X-Api-Key), when the URL is http:// while the editor is https://, " +
-                  "or when it's a free-tier host that is still waking up. Check the server's logs for an OPTIONS/POST request " +
-                  "to /api/v1/build when you press Export.";
+                  "The service must allow requests from the editor (CORS), and the browser needs HTTPS when the editor uses HTTPS. " +
+                  "Check that the server is awake and that its logs show requests to /api/v1/keys or /api/v1/build. " +
+                  "APK uploads also require CORS to allow Content-Type and X-Api-Key.";
               }
               editorState.exportStatus = { phase: "error", error: message };
               pushLog("error", "Android export failed: " + message);
@@ -2151,7 +2082,10 @@ case "build-apk-from-last-export": {
         const buildSignal = beginAndroidBuild(server);
         editorState.exportStatus = { phase: "running", message: "Uploading the exact " + (webExport.format === "pwa" ? "PWA" : "HTML5") + " export…" };
         render();
-        uploadWebExportForAndroid(webExport.blob, webExport.title, webExport.format, server, buildSignal)
+        ensureAndroidServerKey(server, buildSignal)
+          .then(() => {
+            return uploadWebExportForAndroid(webExport.blob, webExport.title, webExport.format, server, buildSignal);
+          })
           .then(async (jobTicket) => {
             editorState.exportStatus = { phase: "running", message: "Build queued…" };
             render();
@@ -3027,21 +2961,6 @@ case "select-scene-file": {
       // "start-export" (which reads editorState.exportGameTitle, not
       // the DOM) always has the latest value even without a render.
       editorState.exportGameTitle = e.target.value;
-      return;
-    }
-
-    if (e.target.dataset.action === "android-server-label-input") {
-      editorState.androidServerFormLabel = e.target.value; // same live-buffer reasoning as export-title-input above
-      return;
-    }
-    if (e.target.dataset.action === "android-server-url-input") {
-      editorState.androidServerFormUrl = e.target.value;
-      editorState.androidServerFormError = "";
-      return;
-    }
-    if (e.target.dataset.action === "android-server-key-input") {
-      editorState.androidServerFormKey = e.target.value;
-      editorState.androidServerFormError = "";
       return;
     }
 

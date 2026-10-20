@@ -2,51 +2,116 @@
   {
     "name": "get_editor_state",
     "description": "Overview of the open Realot editor: project name, whether the game is playing, selected entity ids, entity count, available component types.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
   },
   {
     "name": "list_entities",
     "description": "List every entity in the current scene (id, name, tag, active, component types, x/y position).",
-    "inputSchema": { "type": "object", "properties": { "limit": { "type": "integer", "description": "Max entities to return (default 200)." } }, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "description": "Max entities to return (default 200)."
+        }
+      },
+      "additionalProperties": false
+    }
   },
   {
     "name": "get_entity",
     "description": "Full data of one entity: all components with every property.",
-    "inputSchema": { "type": "object", "properties": { "id": { "type": "string" } }, "required": ["id"], "additionalProperties": false }
-  },
-  {
-    "name": "create_entity",
-    "description": "Create an entity. 'components' maps a component type (e.g. SpriteRenderer, Collider2D, Rigidbody2D, Script) to its properties. A Transform is always added. Undoable with undo.",
     "inputSchema": {
       "type": "object",
       "properties": {
-        "name": { "type": "string" },
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "tag": { "type": "string" },
-        "components": { "type": "object", "description": "{ \"Collider2D\": { \"shape\": \"Box\", \"width\": 50, \"height\": 50 }, ... }" }
+        "id": {
+          "type": "string"
+        }
       },
-      "required": ["name"],
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_entity",
+    "description": "Create an entity. 'components' maps a component type (e.g. SpriteRenderer, Collider2D, Rigidbody2D, Script) to its properties. A Transform is always added. Undoable with undo. Values are validated: wrong types, unknown properties, invalid enum values (e.g. Light.type), out-of-range numbers, bad hex colors and values the engine would silently clamp are rejected with a message listing every problem and the allowed values; nothing is changed on error.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "tag": {
+          "type": "string"
+        },
+        "components": {
+          "type": "object",
+          "description": "{ \"Collider2D\": { \"shape\": \"Box\", \"width\": 50, \"height\": 50 }, ... }"
+        }
+      },
+      "required": [
+        "name"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "update_component",
-    "description": "Change properties of an existing component on an entity (only properties the component already has). Use get_entity first to see them.",
+    "description": "Change properties of an existing component on an entity (only properties the component already has). Use get_entity first to see them. Values are validated: wrong types, unknown properties, invalid enum values (e.g. Light.type), out-of-range numbers, bad hex colors and values the engine would silently clamp are rejected with a message listing every problem and the allowed values; nothing is changed on error.",
     "inputSchema": {
       "type": "object",
-      "properties": { "id": { "type": "string" }, "type": { "type": "string", "description": "Component type, e.g. Transform" }, "props": { "type": "object" } },
-      "required": ["id", "type", "props"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "description": "Component type, e.g. Transform"
+        },
+        "props": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "props"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "add_component",
-    "description": "Add a component to an entity.",
+    "description": "Add a component to an entity. Values are validated: wrong types, unknown properties, invalid enum values (e.g. Light.type), out-of-range numbers, bad hex colors and values the engine would silently clamp are rejected with a message listing every problem and the allowed values; nothing is changed on error.",
     "inputSchema": {
       "type": "object",
-      "properties": { "id": { "type": "string" }, "type": { "type": "string" }, "props": { "type": "object" } },
-      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "props": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
       "additionalProperties": false
     }
   },
@@ -55,8 +120,18 @@
     "description": "Remove a component (not Transform) from an entity.",
     "inputSchema": {
       "type": "object",
-      "properties": { "id": { "type": "string" }, "type": { "type": "string" } },
-      "required": ["id", "type"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type"
+      ],
       "additionalProperties": false
     }
   },
@@ -65,8 +140,17 @@
     "description": "Delete entities by id (same as pressing Delete in the editor). Undoable.",
     "inputSchema": {
       "type": "object",
-      "properties": { "ids": { "type": "array", "items": { "type": "string" } } },
-      "required": ["ids"],
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "ids"
+      ],
       "additionalProperties": false
     }
   },
@@ -75,28 +159,62 @@
     "description": "Select entities in the editor so the user sees them in the Inspector.",
     "inputSchema": {
       "type": "object",
-      "properties": { "ids": { "type": "array", "items": { "type": "string" } } },
-      "required": ["ids"],
+      "properties": {
+        "ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "ids"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "list_scripts",
     "description": "Names of all scripts in the project.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
   },
   {
     "name": "get_script",
     "description": "Source code of a script.",
-    "inputSchema": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"], "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    }
   },
   {
     "name": "write_script",
     "description": "Create or overwrite a script's source code. Entities already using this script get the new code too. Reports syntax errors.",
     "inputSchema": {
       "type": "object",
-      "properties": { "name": { "type": "string" }, "source": { "type": "string" } },
-      "required": ["name", "source"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "source"
+      ],
       "additionalProperties": false
     }
   },
@@ -105,39 +223,1433 @@
     "description": "Attach an existing script to an entity (adds a Script component).",
     "inputSchema": {
       "type": "object",
-      "properties": { "id": { "type": "string" }, "scriptName": { "type": "string" } },
-      "required": ["id", "scriptName"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "scriptName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "scriptName"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "set_playing",
     "description": "Start or stop play mode (opens the game in the play window).",
-    "inputSchema": { "type": "object", "properties": { "playing": { "type": "boolean" } }, "required": ["playing"], "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "playing": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "playing"
+      ],
+      "additionalProperties": false
+    }
   },
   {
     "name": "get_console",
     "description": "Recent editor/play console lines (logs, warnings, script errors).",
-    "inputSchema": { "type": "object", "properties": { "limit": { "type": "integer", "description": "Default 40." } }, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "description": "Default 40."
+        }
+      },
+      "additionalProperties": false
+    }
   },
   {
     "name": "screenshot",
     "description": "Image of the scene viewport as the user sees it.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
   },
   {
     "name": "undo",
     "description": "Undo the last editor change.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
   },
   {
     "name": "redo",
     "description": "Redo the last undone change.",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
   },
   {
     "name": "save_project",
     "description": "Save now (browser autosave slot, and the .realot file if one is being kept up to date).",
-    "inputSchema": { "type": "object", "properties": {}, "additionalProperties": false }
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_assets",
+    "description": "List imported sprites, animation-frame images, and audio assets without returning their binary data. Use the keys in SpriteRenderer, AudioSource, animation clips, and tilesets.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "all",
+            "sprite",
+            "audio",
+            "frame"
+          ]
+        },
+        "query": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 500
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "begin_asset_upload",
+    "description": "Start uploading a sprite, audio file, animation source, or custom tileset image. Then send sequential base64 chunks with append_asset_upload_chunk and finish with complete_asset_upload. The editor must be open and connected. Maximum 12 MiB per file. Purpose 'project-zip' (a .realot/.zip project, max 12 MiB) REPLACES the entire open project and asks the person at the editor to confirm.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "mime_type": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12582912
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "sprite",
+            "audio",
+            "animation-image",
+            "animation-zip",
+            "animation-gif",
+            "animation-sheet",
+            "tileset-sheet",
+            "tileset-tile",
+            "project-zip"
+          ]
+        },
+        "entity_id": {
+          "type": "string",
+          "description": "Required for animation-image, animation-zip, animation-gif, and animation-sheet."
+        },
+        "clip_id": {
+          "type": "string",
+          "description": "Required for animation upload purposes."
+        },
+        "tileset_entity_id": {
+          "type": "string",
+          "description": "Required for tileset-sheet and tileset-tile."
+        },
+        "role": {
+          "type": "string",
+          "description": "Required for tileset-tile; use a role from list_tilesets."
+        },
+        "grid_cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "grid_rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        }
+      },
+      "required": [
+        "file_name",
+        "mime_type",
+        "size_bytes",
+        "purpose"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "append_asset_upload_chunk",
+    "description": "Send one base64-encoded binary chunk for an active asset upload. Chunks must be independent base64 strings, sequential from index 0. Use the chunk size returned by begin_asset_upload; retrying the same index and data is safe.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "upload_id": {
+          "type": "string"
+        },
+        "chunk_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "chunk_base64": {
+          "type": "string",
+          "maxLength": 245760
+        }
+      },
+      "required": [
+        "upload_id",
+        "chunk_index",
+        "chunk_base64"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "complete_asset_upload",
+    "description": "Validate and import all received bytes using the editor's native import pipeline. Call only after every chunk has been accepted.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "upload_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "upload_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "cancel_asset_upload",
+    "description": "Discard a staged upload before it is imported.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "upload_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "upload_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "rename_asset",
+    "description": "Rename an imported sprite, frame, or audio asset while preserving its key and references.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "sprite",
+            "frame",
+            "audio"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 160
+        }
+      },
+      "required": [
+        "key",
+        "kind",
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_asset",
+    "description": "Delete an imported asset. If the asset is referenced by scenes or prefabs, the first call reports those references; set confirm=true only when it is acceptable to leave them unresolved.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "sprite",
+            "frame",
+            "audio"
+          ]
+        },
+        "confirm": {
+          "type": "boolean",
+          "description": "Explicitly confirm deletion even when references exist."
+        }
+      },
+      "required": [
+        "key",
+        "kind"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_animations",
+    "description": "List animation clips and ordered frame keys for every entity in the active scene.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "open_editor_panel",
+    "description": "Open the animation editor, tileset editor, physics-layer panel, or navigation-area panel. Animation and tileset panels need the matching entity_id.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "panel": {
+          "type": "string",
+          "enum": [
+            "animation",
+            "tileset",
+            "physics_layers",
+            "navigation_areas"
+          ]
+        },
+        "entity_id": {
+          "type": "string"
+        },
+        "clip_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "panel"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_animation_clip",
+    "description": "Create an empty animation clip on an entity, adding SpriteAnimation if needed, and open it in the animation editor.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "fps": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 120
+        },
+        "loop": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "entity_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_animation_clip",
+    "description": "Change an animation clip name, frame rate, loop setting, or collider override. Set collider_override to null to remove the override.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "clip_id": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "fps": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 120
+            },
+            "loop": {
+              "type": "boolean"
+            },
+            "collider_override": {
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "entity_id",
+        "clip_id",
+        "fields"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_animation_clip",
+    "description": "Delete one animation clip from its entity. The remaining clips and frames are preserved.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "clip_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_id",
+        "clip_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "move_animation_frame",
+    "description": "Reorder an animation frame by moving it from one zero-based position to another.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "clip_id": {
+          "type": "string"
+        },
+        "from_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "to_index": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "entity_id",
+        "clip_id",
+        "from_index",
+        "to_index"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_animation_frame",
+    "description": "Remove one zero-based frame position from an animation clip without deleting the underlying imported asset.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "clip_id": {
+          "type": "string"
+        },
+        "frame_index": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "entity_id",
+        "clip_id",
+        "frame_index"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_tilesets",
+    "description": "List tilesets, tile dimensions, and sprite keys assigned to each role.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_tileset",
+    "description": "Edit a tileset name, tile dimensions, or selected role-to-sprite assignments. Set a slot to null to clear it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "patch": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string",
+              "maxLength": 120
+            },
+            "tileWidth": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            },
+            "tileHeight": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            },
+            "slots": {
+              "type": "object",
+              "description": "Partial role-to-sprite-key map; use null to clear a role."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "entity_id",
+        "patch"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_tilemaps",
+    "description": "List Tilemap entities, their assigned tileset entity, painted cell count, and up to 500 grid coordinates.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "paint_tilemap",
+    "description": "Paint or erase grid cells on a Tilemap. Coordinates are integer cell columns and rows, not world coordinates. Undoable.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "paint",
+            "erase"
+          ]
+        },
+        "cells": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5000,
+          "items": {
+            "type": "object",
+            "properties": {
+              "col": {
+                "type": "integer"
+              },
+              "row": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "col",
+              "row"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "entity_id",
+        "mode",
+        "cells"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_navigation_worlds",
+    "description": "List NavWorld2D entities with bounds, cell size, painted cell counts, and navigation settings.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "paint_navigation_cells",
+    "description": "Paint walkable or blocked navigation cells, restore baked walkability, or set/clear navigation area indices. Coordinates are integer grid columns and rows. Undoable.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "walkable",
+            "blocked",
+            "erase_walkability",
+            "area",
+            "clear_area"
+          ]
+        },
+        "area_index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "cells": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5000,
+          "items": {
+            "type": "object",
+            "properties": {
+              "col": {
+                "type": "integer"
+              },
+              "row": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "col",
+              "row"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "entity_id",
+        "mode",
+        "cells"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_navigation_world",
+    "description": "Edit NavWorld2D bounds, cell size, obstacle threshold, diagonal movement, dynamic mode, or all 16 area costs. Cell changes invalidate the baked runtime cache.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "patch": {
+          "type": "object",
+          "properties": {
+            "boundsX": {
+              "type": "number"
+            },
+            "boundsY": {
+              "type": "number"
+            },
+            "boundsWidth": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "boundsHeight": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "cellSize": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "minObstacleFootprint": {
+              "type": "number",
+              "minimum": 0
+            },
+            "allowDiagonal": {
+              "type": "boolean"
+            },
+            "dynamic": {
+              "type": "boolean"
+            },
+            "areaCosts": {
+              "type": "array",
+              "minItems": 16,
+              "maxItems": 16,
+              "items": {
+                "type": "number",
+                "minimum": 0.01
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "entity_id",
+        "patch"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_navigation_areas",
+    "description": "List the 16 named navigation area slots and their indices.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "set_navigation_area_name",
+    "description": "Rename one navigation area slot. Slot 0 is the default Ground area and cannot be cleared.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 80
+        }
+      },
+      "required": [
+        "index",
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_physics_layers",
+    "description": "List all 16 named physics layers and their indices.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "set_physics_layer_name",
+    "description": "Rename one of the 16 physics layer slots. Slot 0 is the default layer and cannot be cleared.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 80
+        }
+      },
+      "required": [
+        "index",
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "set_collider_layer_filter",
+    "description": "Set a Collider2D's physics layer and the layer indices it collides with. Use list_physics_layers to map names to indices.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "layer": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
+        },
+        "collides_with": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 15
+          },
+          "maxItems": 16
+        }
+      },
+      "required": [
+        "entity_id",
+        "layer",
+        "collides_with"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "set_editor_tool",
+    "description": "Choose a viewport tool and optionally select its Tilemap, NavWorld2D, or StrokePath entity so the user can continue painting in the editor.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string",
+          "enum": [
+            "select",
+            "translate",
+            "rotate",
+            "scale",
+            "pan",
+            "tile",
+            "erase",
+            "nav",
+            "nav-block",
+            "nav-area",
+            "path"
+          ]
+        },
+        "entity_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_entity",
+    "description": "Rename an entity or change its tag, active flag, or hierarchy folder. Use update_component for Transform and other components.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Entity id"
+        },
+        "patch": {
+          "type": "object",
+          "description": "Any of: name (string), tag (string; new tags are added to the registry), active (boolean), folderId (string|null)"
+        }
+      },
+      "required": [
+        "id",
+        "patch"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_scenes",
+    "description": "List every scene in the project and which one is active.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_scene",
+    "description": "Create a new scene (with a Main Camera). Switches to it unless switch=false.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Scene name"
+        },
+        "switch": {
+          "type": "boolean",
+          "description": "Switch to the new scene (default true)"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "switch_scene",
+    "description": "Make another scene the active one in the editor.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "scene_id": {
+          "type": "string",
+          "description": "Scene id from list_scenes"
+        }
+      },
+      "required": [
+        "scene_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "rename_scene",
+    "description": "Rename a scene.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "scene_id": {
+          "type": "string",
+          "description": "Scene id"
+        },
+        "name": {
+          "type": "string",
+          "description": "New name"
+        }
+      },
+      "required": [
+        "scene_id",
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_scene",
+    "description": "Delete a scene. Cannot be undone, so the first call only reports what would be deleted; repeat with confirm=true. A project must keep one scene.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "scene_id": {
+          "type": "string",
+          "description": "Scene id"
+        },
+        "confirm": {
+          "type": "boolean",
+          "description": "Set true to actually delete"
+        }
+      },
+      "required": [
+        "scene_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_tags",
+    "description": "List the project tag registry.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "add_tag",
+    "description": "Add a tag to the registry.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string",
+          "description": "Tag name"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_tag",
+    "description": "Remove a tag from the registry (Untagged cannot be removed).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string",
+          "description": "Tag name"
+        }
+      },
+      "required": [
+        "tag"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_prefabs",
+    "description": "List prefabs in the project.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_prefab",
+    "description": "Create a prefab from an entity and link that entity to it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Source entity id"
+        },
+        "name": {
+          "type": "string",
+          "description": "Prefab name (default: entity name)"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "instantiate_prefab",
+    "description": "Place a new instance of a prefab in the active scene.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "prefab_id": {
+          "type": "string",
+          "description": "Prefab id from list_prefabs"
+        },
+        "name": {
+          "type": "string",
+          "description": "Optional entity name"
+        },
+        "x": {
+          "type": "number",
+          "description": "World x"
+        },
+        "y": {
+          "type": "number",
+          "description": "World y"
+        }
+      },
+      "required": [
+        "prefab_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "rename_prefab",
+    "description": "Rename a prefab.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "prefab_id": {
+          "type": "string",
+          "description": "Prefab id"
+        },
+        "name": {
+          "type": "string",
+          "description": "New name"
+        }
+      },
+      "required": [
+        "prefab_id",
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_prefab",
+    "description": "Delete a prefab from the catalogue; existing instances become unlinked. First call reports impact; repeat with confirm=true.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "prefab_id": {
+          "type": "string",
+          "description": "Prefab id"
+        },
+        "confirm": {
+          "type": "boolean",
+          "description": "Set true to actually delete"
+        }
+      },
+      "required": [
+        "prefab_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "list_folders",
+    "description": "List Hierarchy folders in the active scene (id, name, parentId).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "create_folder",
+    "description": "Create a Hierarchy folder, optionally nested in another. Put entities in it with update_entity folderId.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Folder name"
+        },
+        "parent_id": {
+          "type": "string",
+          "description": "Parent folder id (omit for top level)"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "rename_folder",
+    "description": "Rename a Hierarchy folder.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "folder_id": {
+          "type": "string",
+          "description": "Folder id"
+        },
+        "name": {
+          "type": "string",
+          "description": "New name"
+        }
+      },
+      "required": [
+        "folder_id",
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "move_folder",
+    "description": "Nest a folder inside another folder, or move it to the top level (omit parent_id). Cycles are refused.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "folder_id": {
+          "type": "string",
+          "description": "Folder id"
+        },
+        "parent_id": {
+          "type": "string",
+          "description": "New parent folder id; omit for top level"
+        }
+      },
+      "required": [
+        "folder_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_folder",
+    "description": "Delete a folder. Its entities and sub-folders move up one level; nothing inside is deleted.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "folder_id": {
+          "type": "string",
+          "description": "Folder id"
+        }
+      },
+      "required": [
+        "folder_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "update_prefab",
+    "description": "Push an instance's current data to its prefab and to every non-overridden instance across all scenes (the editor's Update Prefab).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Entity id of a prefab instance"
+        },
+        "apply_position": {
+          "type": "boolean",
+          "description": "Also propagate position (default false)"
+        },
+        "apply_rotation": {
+          "type": "boolean",
+          "description": "Also propagate rotation (default false)"
+        },
+        "apply_scale": {
+          "type": "boolean",
+          "description": "Also propagate scale (default false)"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "revert_prefab",
+    "description": "Reset a prefab instance to its prefab's data, discarding overrides.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Entity id of a prefab instance"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "unpack_prefab",
+    "description": "Unlink an instance from its prefab, keeping its current data.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Entity id of a prefab instance"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "duplicate_scene",
+    "description": "Duplicate a scene (deep copy) and add it to the project. Does not switch to it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "scene_id": {
+          "type": "string",
+          "description": "Scene id from list_scenes"
+        }
+      },
+      "required": [
+        "scene_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "delete_script",
+    "description": "Delete a script from the project and clear it from objects using it. Cannot be undone, so the first call reports usage; repeat with confirm=true.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Script name"
+        },
+        "confirm": {
+          "type": "boolean",
+          "description": "Set true to actually delete"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "set_script_enabled",
+    "description": "Enable or disable the Script component on an entity without removing it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Entity id"
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "true to enable, false to disable"
+        }
+      },
+      "required": [
+        "id",
+        "enabled"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "bake_navworld",
+    "description": "Bake a NavWorld2D from the scene's colliders (the editor's Bake button). Reports walkable and blocked cell counts.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Entity id with a NavWorld2D component"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "set_paused",
+    "description": "Pause or resume the running game. The game must be playing (see set_playing).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "paused": {
+          "type": "boolean",
+          "description": "true to pause, false to resume"
+        }
+      },
+      "required": [
+        "paused"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "export_game",
+    "description": "Build the game as a standalone HTML5 or PWA ZIP. By default it also downloads the ZIP in the editor's browser; read the bytes with read_export_chunk. APK builds are not supported through MCP.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": [
+            "html",
+            "pwa"
+          ],
+          "description": "Export format"
+        },
+        "title": {
+          "type": "string",
+          "description": "Game title (default: current export/project title)"
+        },
+        "download": {
+          "type": "boolean",
+          "description": "Also download in the editor browser (default true)"
+        }
+      },
+      "required": [
+        "format"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "read_export_chunk",
+    "description": "Read one base64 chunk of the last export_game ZIP.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "export_id": {
+          "type": "string",
+          "description": "export_id from export_game"
+        },
+        "chunk_index": {
+          "type": "integer",
+          "description": "0-based chunk index"
+        }
+      },
+      "required": [
+        "export_id",
+        "chunk_index"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "release_export",
+    "description": "Free the memory held by the last export_game result.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "export_id": {
+          "type": "string",
+          "description": "export_id from export_game"
+        }
+      },
+      "required": [
+        "export_id"
+      ],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "download_project_zip",
+    "description": "Save the whole project as a .realot ZIP, downloaded in the editor's browser (File > Save Project without a file handle).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Project name (default: current)"
+        },
+        "optimize_assets": {
+          "type": "boolean",
+          "description": "Re-encode PNG/WAV assets smaller (slower)"
+        }
+      },
+      "required": [],
+      "additionalProperties": false
+    }
   }
 ]

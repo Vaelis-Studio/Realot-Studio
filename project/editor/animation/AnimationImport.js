@@ -67,12 +67,24 @@ export async function importZipImageFrames(zipFile) {
   // (frame_01, frame_02, ... frame_10) comes out in the RIGHT order —
   // a plain string sort alone would put "frame_10" before "frame_2".
   const entries = Object.values(zip.files)
-    .filter((entry) => !entry.dir && /\.(png|jpe?g|webp|gif|bmp)$/i.test(entry.name))
+    .filter((entry) => !entry.dir && /\.(png|jpe?g|webp|gif|bmp|avif|svg)$/i.test(entry.name))
     .sort((a, b) => _naturalCompare(a.name, b.name));
 
+  const maxFrames = 512;
+  const maxExpandedBytes = 64 * 1024 * 1024;
+  if (entries.length > maxFrames) throw new Error("This ZIP contains more than " + maxFrames + " supported image frames.");
+  const declaredBytes = entries.reduce((total, entry) => {
+    const size = entry._data && Number(entry._data.uncompressedSize);
+    return total + (Number.isFinite(size) && size > 0 ? size : 0);
+  }, 0);
+  if (declaredBytes > maxExpandedBytes) throw new Error("Expanded animation frames exceed the 64 MiB import limit.");
+
   const frames = [];
+  let expandedBytes = 0;
   for (const entry of entries) {
     const blob = await entry.async("blob");
+    expandedBytes += blob.size;
+    if (expandedBytes > maxExpandedBytes) throw new Error("Expanded animation frames exceed the 64 MiB import limit.");
     const filename = entry.name.split("/").pop();
     const file = new File([blob], filename, { type: blob.type || _guessMimeFromName(entry.name) });
     const key = "animframe_" + _nextFrameKeyId++;
@@ -381,5 +393,7 @@ function _guessMimeFromName(name) {
   if (ext === "webp") return "image/webp";
   if (ext === "gif") return "image/gif";
   if (ext === "bmp") return "image/bmp";
+  if (ext === "avif") return "image/avif";
+  if (ext === "svg") return "image/svg+xml";
   return "image/png";
 }

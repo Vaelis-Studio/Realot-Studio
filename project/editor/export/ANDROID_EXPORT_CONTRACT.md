@@ -9,7 +9,7 @@ Realot HTML5 and PWA exports are standalone ZIP packages. The APK build path mus
 Headers:
 
 - `Content-Type: application/zip`
-- `X-Api-Key: <configured build-server key>`
+- `X-Api-Key: <temporary bearer key>`
 
 No other custom headers are sent. Extra custom headers would need to be in the
 server's CORS allow-list or the browser's preflight fails and blocks the
@@ -18,6 +18,21 @@ upload. The server tells a standalone export apart by the ZIP contents
 tell a PWA package from a plain HTML5 one.
 
 Body: the exact ZIP produced by `ExportGame.buildExport()`.
+
+## Built-in service access
+
+The editor's built-in service URL is
+`https://builder--Vaelis-Server.replit.app`. Before an APK build, the browser
+requests `POST /api/v1/keys` without a permanent service credential. The
+service returns a temporary bearer key and its `expiresAt` time; these keys
+expire after 48 hours and are renewed automatically before a later build.
+The key is kept in that browser's `localStorage`, but it is not bound to a
+browser, origin, or user account. The public key-creation route is self-service,
+not access control. The permanent service key must remain server-side and must
+never be added to this static editor package.
+
+This editor distribution is fixed to the built-in service and exposes no
+custom-server or credential-entry controls.
 
 ## Required package entry point
 

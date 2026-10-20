@@ -16,15 +16,19 @@ They open a project → press **Claude** → **Connect** → **Copy link** → i
 * Nothing connects until the user presses **Connect**; the toolbar dot shows the state.
 * The link contains a private key — anyone with it can edit that user's open project. **Make a new private link** replaces it.
 * **Read-only** lets Claude look without changing anything. Every change can be undone with Ctrl+Z.
-* Limits per user: 90 tool calls per minute, small requests only.
+* Limits per user: 90 tool calls per minute and 256 KiB per request. Asset transfers use sequential chunks and are limited to 12 MiB per file.
 
 ## Cost
 Cloudflare's free plan covers a lot (shared across all your users). If the engine grows, the paid Workers plan is about $5/month.
 
 ## What Claude can do
-get_editor_state, list_entities, get_entity, create_entity, update_component, add_component,
-remove_component, delete_entities, select_entities, list_scripts, get_script, write_script,
-attach_script, set_playing, get_console, screenshot, undo, redo, save_project.
+
+* **Scenes and scripts:** inspect and edit entities, components, scripts, play mode, console, and screenshots.
+* **Assets:** list, rename, and delete sprites, animation frames, and audio; import image/audio files through a chunked upload.
+* **Animation:** open the animation editor, create/update/delete clips, import image sequences, GIFs, sprite sheets, and image ZIPs, then reorder or delete frames.
+* **Tilemaps and tilesets:** import a custom 4×4 tileset sheet or individual tile image, edit tileset roles and dimensions, and paint/erase map cells.
+* **Navigation and physics:** paint walkable/blocked navigation cells and areas, edit navigation bounds/costs, rename navigation/physics layers, and set Collider2D layer masks.
+* **Undo, redo, and save:** project changes use the editor's history where supported.
 
 ## For developers
 `mcp-core.js` (MCP protocol, shared) · `worker.js` (Cloudflare Worker + Durable Object) ·
